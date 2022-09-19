@@ -1,0 +1,30 @@
+[tool.poetry]
+name = "pygofpid"
+version = "0.1.0"
+description = "PyGOFPID is a Python package for good old fashioned perimeter intrusion detection system"
+authors = ["Quentin Barthelemy"]
+license = "BSD-3-Clause"
+readme = "README.md"
+homepage = "https://github.com/qbarthelemy/PyGOFPID"
+classifiers = [
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Computer Vision",
+]
+packages = [
+    { include = "pygofpid" },
+]
+
+[tool.poetry.dependencies]
+python = "^3.7"
+numpy = "^1.16.5"
+opencv-python = "^3.4.0.12"
+
+[tool.poetry.dev-dependencies]
+pytest = "^3.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
