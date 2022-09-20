@@ -1,11 +1,12 @@
 # PyGOFPID
 
-[![Code PythonVersion](https://img.shields.io/badge/python-3.7+-blue)](https://img.shields.io/badge/python-3.7+-blue)
+[![Code PythonVersion](https://img.shields.io/badge/python-3.8+-blue)](https://img.shields.io/badge/python-3.7+-blue)
 [![License](https://img.shields.io/badge/licence-BSD--3--Clause-green)](https://img.shields.io/badge/license-BSD--3--Clause-green)
 
 PyGOFPID is a Python package implementing a
 [perimeter intrusion detection (PID)](https://www.mdpi.com/1424-8220/22/9/3601)
-system.
+system for video protection.
+
 Using [OpenCV](https://github.com/opencv/opencv-python), a Python pipeline uses
 good old fashioned (GOF) computer vision methods, like
 [background subtraction](https://en.wikipedia.org/wiki/Foreground_detection#Background_subtraction)
@@ -16,8 +17,14 @@ PyGOFPID is distributed under the open source 3-clause BSD license.
 
 ## Description
 
-TODO
+Class `GOFPID` is a versatile tool allowing to build a parameterizable pipeline,
+composed of:
 
+1. input frame denoising by spatial blurring;
+2. foreground detection by background subtraction;
+3. motion mask denoising by mathematical morphology;
+4. motion blob tracking (WIP);
+5. alarm.
 
 ## Installation
 

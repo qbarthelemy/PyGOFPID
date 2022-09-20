@@ -1,17 +1,20 @@
 """
+===============================================================================
 Example of perimeter intrusion detection.
+===============================================================================
 
 Input video can be dowloaded here
 https://pythonprogramming.net/static/images/opencv/people-walking.mp4
 """
 
 import cv2 as cv
-from gofpid import GOFPID
+from pygofpid.gofpid import GOFPID
 
 
 ###############################################################################
 
-myGOFPID = GOFPID().fit()
+# GOFPID with default parameters
+gofpid = GOFPID().fit()
 
 video_filename = 'people-walking.mp4'
 capture = cv.VideoCapture(video_filename)
@@ -25,13 +28,14 @@ while True:
     if frame is None:
         break
 
-    y = myGOFPID.predict(frame)
+    y = gofpid.predict(frame)
 
     cv.imshow('Frame', frame)
-    cv.imshow('Motion mask', myGOFPID.motion_mask_)
+    cv.imshow('Motion mask', gofpid.motion_mask_)
 
     keyboard = cv.waitKey(30)
     if keyboard == 'q' or keyboard == 27:
         break
+
 
 ###############################################################################
