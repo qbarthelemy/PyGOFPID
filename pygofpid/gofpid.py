@@ -157,8 +157,10 @@ class GOFPID:
 
         self.motion_mask_ = mask_
 
-        # motion blob tracking
+        # motion blob tracking #TODO
         #self.motion_blob_
+
+        # post-processing
 
         # intrusion detection
         if np.any(self.motion_mask_):

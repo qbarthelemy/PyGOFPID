@@ -10,7 +10,7 @@ from pygofpid.gofpid import GOFPID
     [None, cv.COLOR_BGR2GRAY, cv.COLOR_RGB2GRAY]
 )
 def test_gofpid_convert(convert):
-    """Test convert parameter."""
+    """Test parameter convert."""
     img = np.random.randint(0, high=255, size=(64, 64, 3), dtype=np.uint8)
 
     gofpid = GOFPID(convert=convert).fit()
@@ -37,7 +37,27 @@ def test_gofpid_convert(convert):
         },
     ]
 )
+def test_gofpid_blur(size, blur):
+    """Test parameter blur."""
+    img = np.random.randint(0, high=255, size=size, dtype=np.uint8)
+
+    gofpid = GOFPID(blur=blur).fit()
+    gofpid.predict(img)
+
+
+@pytest.mark.parametrize("size", [(64, 64), (64, 64, 1), (64, 64, 3)])
 @pytest.mark.parametrize("frg_detect", ['MOG2', 'KNN', 'FD'])
+def test_gofpid_frgdetect(size, frg_detect):
+    """Test parameter frg_detect."""
+    img1 = np.random.randint(0, high=255, size=size, dtype=np.uint8)
+    img2 = np.random.randint(0, high=255, size=size, dtype=np.uint8)
+
+    gofpid = GOFPID(frg_detect=frg_detect).fit()
+    gofpid.predict(img1)
+    gofpid.predict(img2)
+
+
+@pytest.mark.parametrize("size", [(64, 64), (64, 64, 1), (64, 64, 3)])
 @pytest.mark.parametrize(
     "mat_morph",
     [
@@ -54,15 +74,9 @@ def test_gofpid_convert(convert):
         ],
     ]
 )
-def test_gofpid_allparams(size, blur, frg_detect, mat_morph):
-    """Test parameters."""
-    img1 = np.random.randint(0, high=255, size=size, dtype=np.uint8)
-    img2 = np.random.randint(0, high=255, size=size, dtype=np.uint8)
+def test_gofpid_matmorph(size, mat_morph):
+    """Test parameter mat_morph."""
+    img = np.random.randint(0, high=255, size=size, dtype=np.uint8)
 
-    gofpid = GOFPID(
-        blur=blur,
-        frg_detect=frg_detect,
-        mat_morph=mat_morph,
-    ).fit()
-    gofpid.predict(img1)
-    gofpid.predict(img2)
+    gofpid = GOFPID(mat_morph=mat_morph).fit()
+    gofpid.predict(img)
