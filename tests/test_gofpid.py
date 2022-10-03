@@ -5,6 +5,8 @@ import numpy as np
 import cv2 as cv
 from pygofpid.gofpid import GOFPID
 
+np.random.seed(17)
+
 
 @pytest.mark.parametrize("convert",
     [None, cv.COLOR_BGR2GRAY, cv.COLOR_RGB2GRAY]

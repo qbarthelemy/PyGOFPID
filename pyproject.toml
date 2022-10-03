@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "pygofpid"
 version = "0.1.0"
-description = "PyGOFPID is a Python package for good old fashioned perimeter intrusion detection system"
+description = "PyGOFPID is a Python package for good old fashioned perimeter intrusion detection systems"
 authors = ["Quentin Barthelemy"]
 license = "BSD-3-Clause"
 readme = "README.md"
@@ -18,9 +18,10 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.7"
-numpy = "^1.16.5"
-opencv-python = "^3.4.0.12"
+python = "^3.8"
+numpy = "1.23.3"
+scipy = "1.9.1"
+opencv-python = "3.4.18"
 
 [tool.poetry.dev-dependencies]
 pytest = "^3.0"

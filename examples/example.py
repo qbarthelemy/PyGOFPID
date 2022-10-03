@@ -16,6 +16,7 @@ from pygofpid.gofpid import GOFPID
 
 # GOFPID with default parameters
 gofpid = GOFPID().fit()
+#gofpid = GOFPID(blur=None, mat_morph=None).fit()
 
 video_filename = 'people-walking.mp4'
 capture = cv.VideoCapture(video_filename)
@@ -29,13 +30,21 @@ while True:
     if frame is None:
         break
 
+    # intrusion detection
     y = gofpid.predict(frame)
 
+    # display
+    for i in range(len(gofpid.blobs_)):
+        if y == 0: #TODO: blob by blob
+            cv.drawContours(frame, gofpid.tracked_blobs_[0], i, (255, 0, 0))
+        else:
+            cv.drawContours(frame, gofpid.tracked_blobs_[0], i, (0, 0, 255))
     cv.imshow('Frame', frame)
-    cv.imshow('Motion mask', gofpid.motion_mask_)
+    cv.imshow('Motion mask', gofpid.foreground_mask_)
 
-    keyboard = cv.waitKey(30)
-    if keyboard == 'q' or keyboard == 27:
+    if cv.waitKey(1) & 0xFF == ord('q'):
+        capture.release()
+        cv.destroyAllWindows()
         break
 
 

@@ -11,7 +11,8 @@ Using [OpenCV](https://github.com/opencv/opencv-python), a Python pipeline uses
 good old fashioned (GOF) computer vision methods, like
 [background subtraction](https://en.wikipedia.org/wiki/Foreground_detection#Background_subtraction)
 and [mathematical morphology](https://en.wikipedia.org/wiki/Mathematical_morphology).
-It is useful for comparison with new generation of PID based on deep learning.
+It is useful for comparison with new generation of PID based on deep learning
+on datasets like [i-LIDS](https://ieeexplore.ieee.org/document/4105319).
 
 PyGOFPID is distributed under the open source 3-clause BSD license.
 
@@ -22,9 +23,11 @@ pipeline, composed of:
 
 1. input frame denoising by spatial blurring;
 2. foreground detection by background subtraction;
-3. motion mask denoising by mathematical morphology;
-4. motion blob tracking (WIP);
-5. intrusion detection.
+3. foreground mask denoising by mathematical morphology;
+4. foreground blob creation;
+5. blob tracking (WIP);
+6. post-filtering (WIP);
+7. intrusion detection.
 
 ## Installation
 
