@@ -32,15 +32,8 @@ while True:
 
     # intrusion detection
     y = gofpid.predict(frame)
-
-    # display
-    for i in range(len(gofpid.blobs_)):
-        if y == 0: #TODO: blob by blob
-            cv.drawContours(frame, gofpid.tracked_blobs_[0], i, (255, 0, 0))
-        else:
-            cv.drawContours(frame, gofpid.tracked_blobs_[0], i, (0, 0, 255))
-    cv.imshow('Frame', frame)
-    cv.imshow('Motion mask', gofpid.foreground_mask_)
+    gofpid.display(frame)
+    #cv.imshow('Motion mask', gofpid.foreground_mask_)
 
     if cv.waitKey(1) & 0xFF == ord('q'):
         capture.release()

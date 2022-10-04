@@ -9,7 +9,7 @@ systems for video protection.
 
 Using [OpenCV](https://github.com/opencv/opencv-python), a Python pipeline uses
 good old fashioned (GOF) computer vision methods, like
-[background subtraction](https://en.wikipedia.org/wiki/Foreground_detection#Background_subtraction)
+[foreground detection](https://en.wikipedia.org/wiki/Foreground_detection)
 and [mathematical morphology](https://en.wikipedia.org/wiki/Mathematical_morphology).
 It is useful for comparison with new generation of PID based on deep learning
 on datasets like [i-LIDS](https://ieeexplore.ieee.org/document/4105319).
@@ -22,7 +22,7 @@ Class `GOFPID` is a versatile tool allowing to build a parameterizable PID
 pipeline, composed of:
 
 1. input frame denoising by spatial blurring;
-2. foreground detection by background subtraction;
+2. foreground detection by background subtraction or frame differencing;
 3. foreground mask denoising by mathematical morphology;
 4. foreground blob creation;
 5. blob tracking (WIP);

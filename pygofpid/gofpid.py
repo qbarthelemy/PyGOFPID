@@ -47,6 +47,11 @@ class GOFPID:
         'cv.dilate' for dilation [Dltn]_.
         If None, no processing.
 
+    detect : dict, default={'presence_max': 3}
+        Dictionary containing parameters to detect intrusion.
+        presence_max: number of frames where objet is present and tracked
+        before raising intrusion alarm.
+
     Attributes
     ----------
     foreground_mask_ : ndarray of int, shape (n_height, n_width, n_color)
@@ -89,11 +94,13 @@ class GOFPID:
                 'kernel': cv.getStructuringElement(cv.MORPH_RECT, (5, 5)),
             }
         ],
+        detect={'presence_max': 3}
     ):
         self.convert = convert
         self.blur = blur
         self.frg_detect = frg_detect
         self.mat_morph = mat_morph
+        self.detect = detect
 
     def fit(self):
         """Check parameters and set pipeline. No training.
@@ -129,6 +136,9 @@ class GOFPID:
                         cv.MORPH_RECT,
                         (5, 5),
                     )
+
+        if 'presence_max' not in self.detect.keys():
+            raise ValueError('Parameter detect has no key "presence_max".')
 
         self.tracked_blobs_ = None
 
@@ -174,19 +184,14 @@ class GOFPID:
         # blob tracking
         self._track_blob()
 
-        # post-filtering: perimeter, perspective, presence #TODO
+        # post-filtering: perimeter, perspective #TODO
 
         # intrusion detection
         y = self._detect_blob()
         return y
 
     def _create_blob(self, mask, area_min=100, dist_min=10):  #TODO: in parameters ?
-        """Create blobs from foreground mask.
-
-        1. create blobs using contour retrieval;
-        2. merge blobs to close;
-        3. re-create blobs.
-        """
+        """Create blobs from foreground mask using contour retrieval."""
         # create blobs using contour retrieval
         _, contours, _ = cv.findContours(
             mask,
@@ -201,11 +206,8 @@ class GOFPID:
             if area >= area_min
         ]
 
-        # merge blobs to close #TODO
-        # re-create blobs #TODO
-
     def _track_blob(self, abscence_max=3):
-        """Track blobs.""" #TODO: use more features to pair blobs
+        """Track blobs using only distance to centers."""
         n_blobs = len(self.blobs_)
         if self.tracked_blobs_ is None:
             self.tracked_blobs_ = (
@@ -224,7 +226,7 @@ class GOFPID:
                 )
                 for i in range(n_blobs):
                     j_min = np.argmin(dist[i])
-                    if dist[i, j_min] < 300:
+                    if dist[i, j_min] < 100:  #TODO: use features to pair blobs
                         dist[i, j_min] = -1
                         self.tracked_blobs_[0][j_min] = self.blobs_[i].copy()
                         self.tracked_blobs_[1][j_min] += 1
@@ -252,7 +254,7 @@ class GOFPID:
             centers.append([x, y])
         return np.asarray(centers)
 
-    def _detect_blob(self, presence_max=3):  #TODO: in parameters
+    def _detect_blob(self):
         """Detect intrusion blob by blob."""
         if self.tracked_blobs_ is None:
             return 0
@@ -260,8 +262,17 @@ class GOFPID:
         if n_tracked_blobs == 0:
             return 0
         for i in range(n_tracked_blobs):
-            if self.tracked_blobs_[1][i] > presence_max:
+            if self.tracked_blobs_[1][i] > self.detect.get('presence_max'):
                 return 1
+
+    def display(self, frame, presence_max=3):
+        """On screen display."""
+        for i in range(len(self.tracked_blobs_[0])):
+            if self.tracked_blobs_[1][i] > self.detect.get('presence_max'):
+                cv.drawContours(frame, self.tracked_blobs_[0], i, (0, 0, 255))
+            else:
+                cv.drawContours(frame, self.tracked_blobs_[0], i, (255, 0, 0))
+        cv.imshow('Frame', frame)
 
 
 class FrameDifferencing:
