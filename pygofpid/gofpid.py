@@ -179,7 +179,7 @@ class GOFPID:
         self.foreground_mask_ = mask
 
         # blob creation from foreground mask
-        self._create_blob(mask)
+        self._create_blob()
 
         # blob tracking
         self._track_blob()
@@ -190,11 +190,11 @@ class GOFPID:
         y = self._detect_blob()
         return y
 
-    def _create_blob(self, mask, area_min=100, dist_min=10):  #TODO: in parameters ?
+    def _create_blob(self, area_min=100, dist_min=10):  #TODO: in parameters ?
         """Create blobs from foreground mask using contour retrieval."""
         # create blobs using contour retrieval
         _, contours, _ = cv.findContours(
-            mask,
+            self.foreground_mask_,
             mode=cv.RETR_EXTERNAL,
             method=cv.CHAIN_APPROX_NONE,
         )
@@ -264,6 +264,8 @@ class GOFPID:
         for i in range(n_tracked_blobs):
             if self.tracked_blobs_[1][i] > self.detect.get('presence_max'):
                 return 1
+        else:
+            return 0
 
     def display(self, frame, presence_max=3):
         """On screen display."""
