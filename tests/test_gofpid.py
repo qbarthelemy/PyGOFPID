@@ -15,8 +15,8 @@ def test_gofpid_convert(convert):
     """Test parameter convert."""
     img = np.random.randint(0, high=255, size=(64, 64, 3), dtype=np.uint8)
 
-    gofpid = GOFPID(convert=convert).fit()
-    gofpid.predict(img)
+    gofpid = GOFPID(convert=convert).init()
+    gofpid.detect(img)
 
 
 @pytest.mark.parametrize("size", [(64, 64), (64, 64, 1), (64, 64, 3)])
@@ -43,8 +43,8 @@ def test_gofpid_blur(size, blur):
     """Test parameter blur."""
     img = np.random.randint(0, high=255, size=size, dtype=np.uint8)
 
-    gofpid = GOFPID(blur=blur).fit()
-    gofpid.predict(img)
+    gofpid = GOFPID(blur=blur).init()
+    gofpid.detect(img)
 
 
 @pytest.mark.parametrize("size", [(64, 64), (64, 64, 1), (64, 64, 3)])
@@ -54,9 +54,9 @@ def test_gofpid_frgdetect(size, frg_detect):
     img1 = np.random.randint(0, high=255, size=size, dtype=np.uint8)
     img2 = np.random.randint(0, high=255, size=size, dtype=np.uint8)
 
-    gofpid = GOFPID(frg_detect=frg_detect).fit()
-    gofpid.predict(img1)
-    gofpid.predict(img2)
+    gofpid = GOFPID(frg_detect=frg_detect).init()
+    gofpid.detect(img1)
+    gofpid.detect(img2)
 
 
 @pytest.mark.parametrize("size", [(64, 64), (64, 64, 1), (64, 64, 3)])
@@ -80,5 +80,5 @@ def test_gofpid_matmorph(size, mat_morph):
     """Test parameter mat_morph."""
     img = np.random.randint(0, high=255, size=size, dtype=np.uint8)
 
-    gofpid = GOFPID(mat_morph=mat_morph).fit()
-    gofpid.predict(img)
+    gofpid = GOFPID(mat_morph=mat_morph).init()
+    gofpid.detect(img)

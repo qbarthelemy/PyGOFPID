@@ -26,7 +26,7 @@ pipeline, composed of:
 3. foreground mask denoising by mathematical morphology;
 4. foreground blob creation;
 5. blob tracking (WIP);
-6. post-filtering (WIP);
+6. post-filtering (TODO);
 7. intrusion detection.
 
 ## Installation

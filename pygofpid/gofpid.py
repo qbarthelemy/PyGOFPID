@@ -4,7 +4,7 @@ from scipy.spatial.distance import cdist
 import cv2 as cv
 
 
-class GOFPID:
+class GOFPID():
     """GOFPID: good old fashioned perimeter intrusion detection system.
 
     Using OpenCV, this class allows to build a pipeline using good old
@@ -16,7 +16,7 @@ class GOFPID:
     3. foreground mask denoising by mathematical morphology;
     4. foreground blob creation;
     5. blob tracking (WIP);
-    6. post-filtering (perimeter, perspective) (WIP);
+    6. post-filtering (perimeter, perspective) (TODO);
     7. intrusion detection.
 
     Parameters
@@ -47,7 +47,15 @@ class GOFPID:
         'cv.dilate' for dilation [Dltn]_.
         If None, no processing.
 
-    detect : dict, default={'presence_max': 3}
+    post_filter : dict, default={'perimeter': None, 'anchor_point': 'center', \
+            'perspective': None}
+        Dictionary containing parameters to filter non-intrusions.
+        perimeter: list of points. If None, a window allow to draw it.
+        anchor_point: 'center' or 'bottom'.
+        perspective: list of four points defining the minimum sizes of objects
+        to detect. If None, a window allow to draw them.
+
+    int_detect : dict, default={'presence_max': 3}
         Dictionary containing parameters to detect intrusion.
         presence_max: number of frames where objet is present and tracked
         before raising intrusion alarm.
@@ -61,7 +69,7 @@ class GOFPID:
         Instantaneous blobs created from foreground mask.
 
     tracked_blobs_ : tuple containing blobs, and two lists of int
-        Traked blobs created from instantaneous blobs: blobs, presence counts,
+        Tracked blobs created from instantaneous blobs: blobs, presence counts,
         abscence counts.
 
     References
@@ -94,16 +102,22 @@ class GOFPID:
                 'kernel': cv.getStructuringElement(cv.MORPH_RECT, (5, 5)),
             }
         ],
-        detect={'presence_max': 3}
+        post_filter={
+            'perimeter': None,
+            'anchor_point': 'center',
+            'perspective': None,
+        },
+        int_detect={'presence_max': 3}
     ):
         self.convert = convert
         self.blur = blur
         self.frg_detect = frg_detect
         self.mat_morph = mat_morph
-        self.detect = detect
+        self.post_filter = post_filter
+        self.int_detect = int_detect
 
-    def fit(self):
-        """Check parameters and set pipeline. No training.
+    def init(self):
+        """Initialize, checking parameters and setting pipeline. No training.
 
         Returns
         -------
@@ -137,14 +151,25 @@ class GOFPID:
                         (5, 5),
                     )
 
-        if 'presence_max' not in self.detect.keys():
-            raise ValueError('Parameter detect has no key "presence_max".')
+        if 'perimeter' not in self.post_filter.keys():
+            raise ValueError('Parameter post_filter has no key "perimeter".')
+        if not self.post_filter.get('perimeter'):
+            pass  # TODO: display window
+        if 'anchor_point' not in self.post_filter.keys():
+            raise ValueError('Parameter post_filter has no key "anchor_point".')
+        if 'perspective' not in self.post_filter.keys():
+            raise ValueError('Parameter post_filter has no key "perspective".')
+        if not self.post_filter.get('perspective'):
+            pass  # TODO: display window
+
+        if 'presence_max' not in self.int_detect.keys():
+            raise ValueError('Parameter int_detect has no key "presence_max".')
 
         self.tracked_blobs_ = None
 
         return self
 
-    def predict(self, X):
+    def detect(self, X):
         """Predict if there is an intrusion in current frame.
 
         Parameters
@@ -262,7 +287,7 @@ class GOFPID:
         if n_tracked_blobs == 0:
             return 0
         for i in range(n_tracked_blobs):
-            if self.tracked_blobs_[1][i] > self.detect.get('presence_max'):
+            if self.tracked_blobs_[1][i] > self.int_detect.get('presence_max'):
                 return 1
         else:
             return 0
@@ -270,14 +295,14 @@ class GOFPID:
     def display(self, frame, presence_max=3):
         """On screen display."""
         for i in range(len(self.tracked_blobs_[0])):
-            if self.tracked_blobs_[1][i] > self.detect.get('presence_max'):
+            if self.tracked_blobs_[1][i] > self.int_detect.get('presence_max'):
                 cv.drawContours(frame, self.tracked_blobs_[0], i, (0, 0, 255))
             else:
                 cv.drawContours(frame, self.tracked_blobs_[0], i, (255, 0, 0))
         cv.imshow('Frame', frame)
 
 
-class FrameDifferencing:
+class FrameDifferencing():
     """Foreground detection by frame differencing.
 
     Parameters

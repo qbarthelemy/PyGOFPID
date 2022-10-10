@@ -15,8 +15,8 @@ from pygofpid.gofpid import GOFPID
 ###############################################################################
 
 # GOFPID with default parameters
-gofpid = GOFPID().fit()
-#gofpid = GOFPID(blur=None, mat_morph=None).fit()
+gofpid = GOFPID().init()
+#gofpid = GOFPID(blur=None, mat_morph=None).init()
 
 video_filename = 'people-walking.mp4'
 capture = cv.VideoCapture(video_filename)
@@ -31,7 +31,7 @@ while True:
         break
 
     # intrusion detection
-    y = gofpid.predict(frame)
+    y = gofpid.detect(frame)
     gofpid.display(frame)
     #cv.imshow('Motion mask', gofpid.foreground_mask_)
 
