@@ -7,10 +7,15 @@ from pygofpid.gofpid import GOFPID, get_centers, get_bottoms
 
 np.random.seed(17)
 
+post_filter={
+    'perimeter': np.array([[0, 0], [0, 1], [1, 1], [1, 0]], dtype=np.float64),
+    'anchor': 'center',
+    'perspective': np.array([[0, 0], [0, 1], [1, 1], [1, 0]], dtype=np.float64), #TODO
+}
 
 def test_gofpid_errors():
     """Test GOFPID errors."""
-    gofpid = GOFPID().init()
+    gofpid = GOFPID(post_filter=post_filter).init()
 
     img1 = np.random.randint(0, high=255, size=(64, 64, 3), dtype=np.uint8)
     gofpid.detect(img1)
@@ -24,7 +29,10 @@ def test_gofpid_errors():
 )
 def test_gofpid_convert(convert):
     """Test parameter convert."""
-    gofpid = GOFPID(convert=convert).init()
+    gofpid = GOFPID(
+        convert=convert,
+        post_filter=post_filter,
+    ).init()
     img = np.random.randint(0, high=255, size=(64, 64, 3), dtype=np.uint8)
     gofpid.detect(img)
 
@@ -51,7 +59,10 @@ def test_gofpid_convert(convert):
 )
 def test_gofpid_blur(size, blur):
     """Test parameter blur."""
-    gofpid = GOFPID(blur=blur).init()
+    gofpid = GOFPID(
+        blur=blur,
+        post_filter=post_filter,
+    ).init()
     img = np.random.randint(0, high=255, size=size, dtype=np.uint8)
     gofpid.detect(img)
 
@@ -59,14 +70,20 @@ def test_gofpid_blur(size, blur):
 def test_gofpid_blur_errors():
     """Test parameter blur errors."""
     with pytest.raises(ValueError):  # no 'fun' in parameters
-         GOFPID(blur={'ksize': (3, 3)}).init()
+        GOFPID(
+            blur={'ksize': (3, 3)},
+            post_filter=post_filter,
+        ).init()
 
 
 @pytest.mark.parametrize("size", [(64, 64), (64, 64, 1), (64, 64, 3)])
 @pytest.mark.parametrize("frg_detect", ['MOG2', 'KNN', 'FD'])
 def test_gofpid_frgdetect(size, frg_detect):
     """Test parameter frg_detect."""
-    gofpid = GOFPID(frg_detect=frg_detect).init()
+    gofpid = GOFPID(
+        frg_detect=frg_detect,
+        post_filter=post_filter,
+    ).init()
     img1 = np.random.randint(0, high=255, size=size, dtype=np.uint8)
     gofpid.detect(img1)
     img2 = np.random.randint(0, high=255, size=size, dtype=np.uint8)
@@ -76,7 +93,10 @@ def test_gofpid_frgdetect(size, frg_detect):
 def test_gofpid_frgdetect_errors():
     """Test parameter frg_detect errors."""
     with pytest.raises(ValueError):  # unknown method
-         GOFPID(frg_detect='blabla').init()
+        GOFPID(
+            frg_detect='blabla',
+            post_filter=post_filter,
+        ).init()
 
 
 @pytest.mark.parametrize("size", [(64, 64), (64, 64, 1), (64, 64, 3)])
@@ -98,7 +118,10 @@ def test_gofpid_frgdetect_errors():
 )
 def test_gofpid_matmorph(size, mat_morph):
     """Test parameter mat_morph."""
-    gofpid = GOFPID(mat_morph=mat_morph).init()
+    gofpid = GOFPID(
+        mat_morph=mat_morph,
+        post_filter=post_filter,
+    ).init()
     img = np.random.randint(0, high=255, size=size, dtype=np.uint8)
     gofpid.detect(img)
 
@@ -106,16 +129,22 @@ def test_gofpid_matmorph(size, mat_morph):
 def test_gofpid_matmorph_errors():
     """Test parameter mat_morph errors."""
     with pytest.raises(ValueError):  # no 'fun' in parameters
-         GOFPID(mat_morph=[{
-             'kernel': cv.getStructuringElement(cv.MORPH_RECT, (5, 5))
-         }]).init()
+        GOFPID(
+            mat_morph=[
+                {'kernel': cv.getStructuringElement(cv.MORPH_RECT, (5, 5))}
+            ],
+            post_filter=post_filter,
+        ).init()
 
 # TODO test_gofpid_postfilter():
 
 def test_gofpid_intdetect_errors():
     """Test parameter int_detect errors."""
     with pytest.raises(ValueError):  # no 'presence_max' in parameters
-         GOFPID(int_detect={'fake': 1}).init()
+        GOFPID(
+            post_filter=post_filter,
+            int_detect={'fake': 1},
+        ).init()
 
 
 def test_get_centers():

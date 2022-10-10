@@ -16,7 +16,7 @@ from pygofpid.gofpid import GOFPID
 ###############################################################################
 
 # GOFPID with default parameters
-gofpid = GOFPID().init()
+gofpid = GOFPID(verbose=True).init()
 #gofpid = GOFPID(blur=None, mat_morph=None).init()
 
 video_filename = 'people-walking.mp4'

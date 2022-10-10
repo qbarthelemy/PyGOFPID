@@ -71,7 +71,7 @@ class GOFPID():
     foreground_mask_ : ndarray of int, shape (n_height, n_width, n_color)
         Foreground mask.
 
-    blobs_ : list of n_blobs lists of n_points list of two int
+    blobs_ : list of n_blobs lists of n_points lists of two int
         Instantaneous blobs created from foreground mask.
 
     tracked_blobs_ : tuple containing blobs, and two lists of int
@@ -113,7 +113,8 @@ class GOFPID():
             'anchor': 'center',
             'perspective': None,
         },
-        int_detect={'presence_max': 3}
+        int_detect={'presence_max': 3},
+        verbose=False
     ):
         self.convert = convert
         self.blur = blur
@@ -121,6 +122,7 @@ class GOFPID():
         self.mat_morph = mat_morph
         self.post_filter = post_filter
         self.int_detect = int_detect
+        self.verbose = verbose
         self.input_shape = None
 
     def init(self):
@@ -160,11 +162,8 @@ class GOFPID():
 
         if 'perimeter' not in self.post_filter.keys():
             raise ValueError('Parameter post_filter has no key "perimeter".')
-        if not self.post_filter.get('perimeter'):
-            pass  # TODO: display window
-            #self.post_filter.perimeter = np.asarray(self.post_filter.perimeter)
-        else:
-            self.post_filter.perimeter = np.array([[0, 0], [0, 1], [1, 1], [1, 0]])
+        if not isinstance(self.post_filter['perimeter'], np.ndarray):
+            self.post_filter['perimeter'] = self._display_perimeter()
         if 'anchor' not in self.post_filter.keys():
             raise ValueError('Parameter post_filter has no key "anchor".')
         if self.post_filter.get('anchor') == 'center':
@@ -175,15 +174,92 @@ class GOFPID():
             raise ValueError('Parameter anchor must be "center" or "bottom".')
         if 'perspective' not in self.post_filter.keys():
             raise ValueError('Parameter post_filter has no key "perspective".')
-        if not self.post_filter.get('perspective'):
-            #self._display_perspective()
-            pass
+        if not isinstance(self.post_filter['perspective'], np.ndarray):
+            self.post_filter['perspective'] = self._display_perspective()
         if 'presence_max' not in self.int_detect.keys():
             raise ValueError('Parameter int_detect has no key "presence_max".')
 
         self.tracked_blobs_ = None
 
         return self
+
+# buttons for reset and ok
+# allow to use an image from video
+
+    def _display_perimeter(self):
+
+        img = np.random.randint(0, high=255, size=(200, 300, 3), dtype=np.uint8)
+        clone = img.copy()
+        perimeter = []
+
+        def draw_line(event, x, y, flags, param):
+            if event in [cv.EVENT_LBUTTONDOWN, cv.EVENT_LBUTTONUP]:
+                perimeter.append([x, y])
+                if len(perimeter) > 1:
+                    cv.line(img, perimeter[-2], perimeter[-1], (0, 0, 255), 2)
+                    cv.imshow("Config perimeter", img)
+
+        cv.namedWindow("Config perimeter")
+        cv.setMouseCallback("Config perimeter", draw_line)
+
+        # keep looping until the 'c' key is pressed
+        while True:
+            # display the image and wait for a keypress
+            cv.imshow("Config perimeter", img)
+            key = cv.waitKey(1) & 0xFF
+            # if the 'r' key is pressed, reset image
+            if key == ord("r"):
+                img = clone.copy()
+            # if the 'c' key is pressed, break from the loop
+            elif key == ord("c"):
+                break
+        cv.destroyWindow("Config perimeter")
+
+        perimeter = np.asarray(perimeter, dtype=np.float64)
+        perimeter[:, 0] /= img.shape[1]
+        perimeter[:, 1] /= img.shape[0]
+        if self.verbose:
+            print("Config perimeter:\n", perimeter)
+        return perimeter
+
+# TODO: display rectangles, and allow to modify them
+    def _display_perspective(self):
+
+        img = np.random.randint(0, high=255, size=(200, 300, 3), dtype=np.uint8)
+        clone = img.copy()
+        rects = []
+
+        def draw_rectangle(event, x, y, flags, param):
+            global rect
+            if event == cv.EVENT_LBUTTONDOWN:
+                rect = [[x, y]]
+            elif event == cv.EVENT_LBUTTONUP:
+                rect.append([x, y])
+                cv.rectangle(img, rect[0], rect[1], (0, 0, 255), 2)
+                cv.imshow("Config perspective", img)
+                rects.append(rect)
+
+        cv.namedWindow("Config perspective")
+        cv.setMouseCallback("Config perspective", draw_rectangle)
+
+        # keep looping until the 'c' key is pressed
+        while True:
+            # display the image and wait for a keypress
+            cv.imshow("Config perspective", img)
+            key = cv.waitKey(1) & 0xFF
+            # if the 'r' key is pressed, reset image
+            if key == ord("r"):
+                img = clone.copy()
+            # if the 'c' key is pressed, break from the loop
+            elif key == ord("c"):
+                break
+        cv.destroyWindow("Config perspective")
+
+        # normalized coordinates
+
+        if self.verbose:
+            print("Config perspective:\n", rects)
+        return rects
 
     def detect(self, X):
         """Predict if there is an intrusion in current frame.
@@ -233,7 +309,7 @@ class GOFPID():
         self._track_blob()
 
         # post-filtering: perimeter, perspective
-        #self._post_filter()  #TODO
+        self._post_filter()
 
         # intrusion detection
         y = self._detect_blob()
@@ -259,55 +335,68 @@ class GOFPID():
         """Track blobs using only distance to centers."""
         n_blobs = len(self.blobs_)
         if self.tracked_blobs_ is None:
-            self.tracked_blobs_ = (
-                self.blobs_.copy(),
-                [1] * n_blobs,
-                [0] * n_blobs
-            )
+            self.tracked_blobs_ = []
+            for i in range(n_blobs):
+                self.tracked_blobs_.append({
+                    'contour': self.blobs_[i].copy(),
+                    'presence': 1,
+                    'abscence': 0,
+                    'filter': 'presence',
+                })
 
         else:
-            n_tracked_blobs = len(self.tracked_blobs_[0])
+            n_tracked_blobs = len(self.tracked_blobs_)
             if n_blobs > 0 and n_tracked_blobs > 0:
+                # parwise distances
                 blobs_cent = get_centers(self.blobs_)
-                tracked_blobs_cent = get_centers(self.tracked_blobs_[0])
+                tracked_blobs_cent = get_centers(
+                    [blob['contour'] for blob in self.tracked_blobs_]
+                )
                 dist = np.atleast_2d(
                     cdist(blobs_cent, tracked_blobs_cent, 'euclidean')
                 )
+
                 for i in range(n_blobs):
                     j_min = np.argmin(dist[i])
-                    if dist[i, j_min] < 100:  #TODO: use features to pair blobs
+                    #TODO: use features to pair blobs
+                    if dist[i, j_min] < 100:  # pair found
                         dist[i, j_min] = -1
-                        self.tracked_blobs_[0][j_min] = self.blobs_[i].copy()
-                        self.tracked_blobs_[1][j_min] += 1
-                        self.tracked_blobs_[2][j_min] = 0
+                        self.tracked_blobs_[j_min]['contour'] = self.blobs_[i].copy()
+                        self.tracked_blobs_[j_min]['presence'] += 1
+                        self.tracked_blobs_[j_min]['absence'] = 0
                     else:
-                        self.tracked_blobs_[0].append(self.blobs_[i].copy())
-                        self.tracked_blobs_[1].append(1)
-                        self.tracked_blobs_[2].append(0)
-                for j in range(n_tracked_blobs - 1, 0, -1):
-                    if np.all(dist[:, j] >= 0):
-                        self.tracked_blobs_[1][j] = 0
-                        self.tracked_blobs_[2][j] += 1
-                        if self.tracked_blobs_[2][j] > abscence_max:
-                            del self.tracked_blobs_[0][j]
-                            del self.tracked_blobs_[1][j]
-                            del self.tracked_blobs_[2][j]
+                        self.tracked_blobs_.append({
+                            'contour': self.blobs_[i].copy(),
+                            'presence': 1,
+                            'abscence': 0,
+                            'filter': 'presence',
+                        })
+                for i in range(n_tracked_blobs - 1, 0, -1):
+                    if np.all(dist[:, i] >= 0):
+                        self.tracked_blobs_[i]['presence'] = 0
+                        self.tracked_blobs_[i]['absence'] += 1
+                        if self.tracked_blobs_[i]['absence'] > abscence_max:
+                            del self.tracked_blobs_[i]
 
     def _post_filter(self):
         """Post-filter non-intrusions with perimeter and perspective."""
         # perimeter
-        if np.all(0 <= self.post_filter.get('perimeter') <= 1):
-            self.post_filter.perimeter[:, 0] *= self.input_shape[0]
-            self.post_filter.perimeter[:, 1] *= self.input_shape[1]
+        perimeter = self.post_filter['perimeter']
+        if np.all((0.0 <= perimeter) & (perimeter <= 1.0)):
+            perimeter[:, 0] *= self.input_shape[1]
+            perimeter[:, 1] *= self.input_shape[0]
+            self.post_filter['perimeter'] = perimeter.astype(np.int32)
 
-        anchors = self._get_anchors(self.tracked_blobs_[0])
+        anchors = self._get_anchors(
+            [blob['contour'] for blob in self.tracked_blobs_]
+        )
         for i in range(len(anchors)):
             if cv.pointPolygonTest(
-                self.post_filter.perimeter,
-                anchors[i],
+                self.post_filter['perimeter'],
+                (anchors[i][0], anchors[i][1]),
                 False,
             ) < 0:  # object not in perimeter
-                self.tracked_blobs_[3][i] = 'perimeter'
+                self.tracked_blobs_[i]['filter'] = 'perimeter'
 
         # perspective  #TODO
 
@@ -315,16 +404,16 @@ class GOFPID():
         """Detect intrusion blob by blob."""
         if self.tracked_blobs_ is None:
             return 0
-        n_tracked_blobs = len(self.tracked_blobs_[0])
-        if n_tracked_blobs == 0:
-            return 0
-        for i in range(n_tracked_blobs):
-            if self.tracked_blobs_[1][i] > self.int_detect.get('presence_max'):
-                return 1
-        else:
-            return 0
 
-    def display(self, X, presence_max=3):
+        y = 0
+        for blob in self.tracked_blobs_:
+            if blob['presence'] > self.int_detect.get('presence_max'):
+                blob['filter'] = None
+                y = 1
+
+        return y
+
+    def display(self, X, presence_max=3): #TODO: remove presence_max
         """On screen display.
 
         Parameters
@@ -333,12 +422,18 @@ class GOFPID():
                 (n_height, n_width, n_channel)
             Input frame.
         """
-        # TODO: plot perimeter
-        for i in range(len(self.tracked_blobs_[0])):
-            if self.tracked_blobs_[1][i] > self.int_detect.get('presence_max'):
-                cv.drawContours(X, self.tracked_blobs_[0], i, (0, 0, 255))
+        cv.drawContours(X, [self.post_filter['perimeter']], 0, (25, 200, 200))
+
+        for blob in self.tracked_blobs_:
+            if blob['filter'] == 'presence':
+                cv.drawContours(X, [blob['contour']], 0, (0, 255, 0))
+            elif blob['filter'] == 'perimeter':
+                cv.drawContours(X, [blob['contour']], 0, (255, 0, 0))
+            elif blob['filter'] == None:
+                cv.drawContours(X, [blob['contour']], 0, (0, 0, 255))
             else:
-                cv.drawContours(X, self.tracked_blobs_[0], i, (255, 0, 0))
+                raise ValueError('Unknown filtering type')
+
         cv.imshow('Frame', X)
 
 
@@ -402,7 +497,7 @@ def get_centers(contours):
         x = int(moments["m10"] / moments["m00"])
         y = int(moments["m01"] / moments["m00"])
         centers.append([x, y])
-    return np.asarray(centers)
+    return np.array(centers, dtype=np.uint8)
 
 
 def get_bottoms(contours):
@@ -413,4 +508,4 @@ def get_bottoms(contours):
         x = int(moments["m10"] / moments["m00"])
         y = max(contour[:, 1])
         bottoms.append([x, y])
-    return np.asarray(bottoms)
+    return np.array(bottoms, dtype=np.uint8)
