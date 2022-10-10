@@ -49,16 +49,22 @@ class GOFPID():
 
     post_filter : dict, default={'perimeter': None, 'anchor_point': 'center', \
             'perspective': None}
-        Dictionary containing parameters to filter non-intrusions.
-        perimeter: list of points. If None, a window allow to draw it.
-        anchor_point: 'center' or 'bottom'.
-        perspective: list of four points defining the minimum sizes of objects
-        to detect. If None, a window allow to draw them.
+        Dictionary containing parameters to filter non-intrusions:
+
+        - perimeter: list of points. If None, a window allows to draw it.
+        - anchor: 'center' or 'bottom', to determine if an object is in the
+          perimeter.
+        - perspective: list of four points, defining the minimum sizes of
+          objects to detect. Two boxes represent a person in the image (one box
+          in the foreground and a second in the background).
+          If None, a window allows to draw these rectangles according to the
+          size of a person placed in these places in the image.
 
     int_detect : dict, default={'presence_max': 3}
-        Dictionary containing parameters to detect intrusion.
-        presence_max: number of frames where objet is present and tracked
-        before raising intrusion alarm.
+        Dictionary containing parameters to detect intrusion:
+
+        - presence_max: number of frames where objet is present and tracked
+          before raising intrusion alarm.
 
     Attributes
     ----------
@@ -104,7 +110,7 @@ class GOFPID():
         ],
         post_filter={
             'perimeter': None,
-            'anchor_point': 'center',
+            'anchor': 'center',
             'perspective': None,
         },
         int_detect={'presence_max': 3}
@@ -115,6 +121,7 @@ class GOFPID():
         self.mat_morph = mat_morph
         self.post_filter = post_filter
         self.int_detect = int_detect
+        self.input_shape = None
 
     def init(self):
         """Initialize, checking parameters and setting pipeline. No training.
@@ -155,13 +162,22 @@ class GOFPID():
             raise ValueError('Parameter post_filter has no key "perimeter".')
         if not self.post_filter.get('perimeter'):
             pass  # TODO: display window
-        if 'anchor_point' not in self.post_filter.keys():
-            raise ValueError('Parameter post_filter has no key "anchor_point".')
+            #self.post_filter.perimeter = np.asarray(self.post_filter.perimeter)
+        else:
+            self.post_filter.perimeter = np.array([[0, 0], [0, 1], [1, 1], [1, 0]])
+        if 'anchor' not in self.post_filter.keys():
+            raise ValueError('Parameter post_filter has no key "anchor".')
+        if self.post_filter.get('anchor') == 'center':
+            self._get_anchors = get_centers
+        elif self.post_filter.get('anchor') == 'bottom':
+            self._get_anchors = get_bottoms
+        else:
+            raise ValueError('Parameter anchor must be "center" or "bottom".')
         if 'perspective' not in self.post_filter.keys():
             raise ValueError('Parameter post_filter has no key "perspective".')
         if not self.post_filter.get('perspective'):
-            pass  # TODO: display window
-
+            #self._display_perspective()
+            pass
         if 'presence_max' not in self.int_detect.keys():
             raise ValueError('Parameter int_detect has no key "presence_max".')
 
@@ -183,6 +199,13 @@ class GOFPID():
         y : int
             Prediction of intrusion: 1 if intrusion detected, 0 otherwise.
         """
+        # input shape checking
+        if not self.input_shape:
+            self.input_shape = X.shape
+        else:
+            if X.shape != self.input_shape:
+                raise ValueError('Input shape has changed.')
+
         if self.convert:
             X = cv.cvtColor(X, self.convert)
 
@@ -210,7 +233,7 @@ class GOFPID():
         self._track_blob()
 
         # post-filtering: perimeter, perspective
-        self._post_filter()
+        #self._post_filter()  #TODO
 
         # intrusion detection
         y = self._detect_blob()
@@ -245,8 +268,8 @@ class GOFPID():
         else:
             n_tracked_blobs = len(self.tracked_blobs_[0])
             if n_blobs > 0 and n_tracked_blobs > 0:
-                blobs_cent = self._get_center(self.blobs_)
-                tracked_blobs_cent = self._get_center(self.tracked_blobs_[0])
+                blobs_cent = get_centers(self.blobs_)
+                tracked_blobs_cent = get_centers(self.tracked_blobs_[0])
                 dist = np.atleast_2d(
                     cdist(blobs_cent, tracked_blobs_cent, 'euclidean')
                 )
@@ -270,15 +293,23 @@ class GOFPID():
                             del self.tracked_blobs_[1][j]
                             del self.tracked_blobs_[2][j]
 
-    def _get_center(self, contours):
-        """Compute centers of blobs."""
-        centers = []
-        for contour in contours:
-            moments = cv.moments(contour)
-            x = int(moments["m10"] / moments["m00"])
-            y = int(moments["m01"] / moments["m00"])
-            centers.append([x, y])
-        return np.asarray(centers)
+    def _post_filter(self):
+        """Post-filter non-intrusions with perimeter and perspective."""
+        # perimeter
+        if np.all(0 <= self.post_filter.get('perimeter') <= 1):
+            self.post_filter.perimeter[:, 0] *= self.input_shape[0]
+            self.post_filter.perimeter[:, 1] *= self.input_shape[1]
+
+        anchors = self._get_anchors(self.tracked_blobs_[0])
+        for i in range(len(anchors)):
+            if cv.pointPolygonTest(
+                self.post_filter.perimeter,
+                anchors[i],
+                False,
+            ) < 0:  # object not in perimeter
+                self.tracked_blobs_[3][i] = 'perimeter'
+
+        # perspective  #TODO
 
     def _detect_blob(self):
         """Detect intrusion blob by blob."""
@@ -293,19 +324,25 @@ class GOFPID():
         else:
             return 0
 
-    def _post_filter(self):  #TODO
-        """Post-filter non-intrusions with perimeter and perspective."""
-        pass
+    def display(self, X, presence_max=3):
+        """On screen display.
 
-    def display(self, frame, presence_max=3):
-        """On screen display."""
+        Parameters
+        ----------
+        X : ndarray of int, shape (n_height, n_width) or \
+                (n_height, n_width, n_channel)
+            Input frame.
+        """
+        # TODO: plot perimeter
         for i in range(len(self.tracked_blobs_[0])):
             if self.tracked_blobs_[1][i] > self.int_detect.get('presence_max'):
-                cv.drawContours(frame, self.tracked_blobs_[0], i, (0, 0, 255))
+                cv.drawContours(X, self.tracked_blobs_[0], i, (0, 0, 255))
             else:
-                cv.drawContours(frame, self.tracked_blobs_[0], i, (255, 0, 0))
-        cv.imshow('Frame', frame)
+                cv.drawContours(X, self.tracked_blobs_[0], i, (255, 0, 0))
+        cv.imshow('Frame', X)
 
+
+###############################################################################
 
 class FrameDifferencing():
     """Foreground detection by frame differencing.
@@ -353,3 +390,27 @@ class FrameDifferencing():
         self._X = X
 
         return X_new
+
+
+###############################################################################
+
+def get_centers(contours):
+    """Compute centers of contours."""
+    centers = []
+    for contour in contours:
+        moments = cv.moments(contour)
+        x = int(moments["m10"] / moments["m00"])
+        y = int(moments["m01"] / moments["m00"])
+        centers.append([x, y])
+    return np.asarray(centers)
+
+
+def get_bottoms(contours):
+    """Compute middle-bottom points of contours."""
+    bottoms = []
+    for contour in contours:
+        moments = cv.moments(contour)
+        x = int(moments["m10"] / moments["m00"])
+        y = max(contour[:, 1])
+        bottoms.append([x, y])
+    return np.asarray(bottoms)

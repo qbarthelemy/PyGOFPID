@@ -3,9 +3,10 @@
 Example of perimeter intrusion detection.
 ===============================================================================
 
-First, download video here
-https://pythonprogramming.net/static/images/opencv/people-walking.mp4
-and put it in the same folder. Then, run the script.
+1 - Download video here
+https://pythonprogramming.net/static/images/opencv/people-walking.mp4;
+2 - Put it in the same folder;
+3 - Run the script.
 """
 
 import cv2 as cv
