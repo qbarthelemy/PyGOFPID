@@ -74,9 +74,13 @@ class GOFPID():
     blobs_ : list of n_blobs lists of n_points lists of two int
         Instantaneous blobs created from foreground mask.
 
-    tracked_blobs_ : tuple containing blobs, and two lists of int
-        Tracked blobs created from instantaneous blobs: blobs, presence counts,
-        abscence counts.
+    tracked_blobs_ : list of n_blobs dict
+        Tracked blobs created from instantaneous blobs:
+
+        - contour: contour of blob;
+        - presence: presence count;
+        - absence: absence count;
+        - filter: typf of filtering.
 
     References
     ----------
@@ -255,7 +259,7 @@ class GOFPID():
                 break
         cv.destroyWindow("Config perspective")
 
-        # normalized coordinates
+        # TODO: normalized coordinates
 
         if self.verbose:
             print("Config perspective:\n", rects)
@@ -331,7 +335,7 @@ class GOFPID():
             if area >= area_min
         ]
 
-    def _track_blob(self, abscence_max=3):
+    def _track_blob(self, absence_max=3):
         """Track blobs using only distance to centers."""
         n_blobs = len(self.blobs_)
         if self.tracked_blobs_ is None:
@@ -340,7 +344,7 @@ class GOFPID():
                 self.tracked_blobs_.append({
                     'contour': self.blobs_[i].copy(),
                     'presence': 1,
-                    'abscence': 0,
+                    'absence': 0,
                     'filter': 'presence',
                 })
 
@@ -368,15 +372,16 @@ class GOFPID():
                         self.tracked_blobs_.append({
                             'contour': self.blobs_[i].copy(),
                             'presence': 1,
-                            'abscence': 0,
+                            'absence': 0,
                             'filter': 'presence',
                         })
+
                 for i in range(n_tracked_blobs - 1, 0, -1):
-                    if np.all(dist[:, i] >= 0):
+                    if np.all(dist[:, i] >= 0): # no pair found
                         self.tracked_blobs_[i]['presence'] = 0
                         self.tracked_blobs_[i]['absence'] += 1
-                        if self.tracked_blobs_[i]['absence'] > abscence_max:
-                            del self.tracked_blobs_[i]
+                        if self.tracked_blobs_[i]['absence'] > absence_max:
+                            self.tracked_blobs_.pop(i)
 
     def _post_filter(self):
         """Post-filter non-intrusions with perimeter and perspective."""
@@ -406,14 +411,14 @@ class GOFPID():
             return 0
 
         y = 0
-        for blob in self.tracked_blobs_:
+        for i, blob in enumerate(self.tracked_blobs_):
             if blob['presence'] > self.int_detect.get('presence_max'):
-                blob['filter'] = None
+                self.tracked_blobs_[i]['filter'] = None
                 y = 1
 
         return y
 
-    def display(self, X, presence_max=3): #TODO: remove presence_max
+    def display(self, X):
         """On screen display.
 
         Parameters
