@@ -47,6 +47,12 @@ def test_gofpid_blur(size, blur):
     gofpid.detect(img)
 
 
+def test_gofpid_blur_errors():
+    """Test parameter blur errors."""
+    with pytest.raises(ValueError):  # no 'fun' in parameters
+         GOFPID(blur={'ksize': (3, 3)}).init()
+
+
 @pytest.mark.parametrize("size", [(64, 64), (64, 64, 1), (64, 64, 3)])
 @pytest.mark.parametrize("frg_detect", ['MOG2', 'KNN', 'FD'])
 def test_gofpid_frgdetect(size, frg_detect):
@@ -57,6 +63,12 @@ def test_gofpid_frgdetect(size, frg_detect):
     gofpid = GOFPID(frg_detect=frg_detect).init()
     gofpid.detect(img1)
     gofpid.detect(img2)
+
+
+def test_gofpid_frgdetect_errors():
+    """Test parameter frg_detect errors."""
+    with pytest.raises(ValueError):  # unknown method
+         GOFPID(frg_detect='blabla').init()
 
 
 @pytest.mark.parametrize("size", [(64, 64), (64, 64, 1), (64, 64, 3)])
@@ -82,3 +94,17 @@ def test_gofpid_matmorph(size, mat_morph):
 
     gofpid = GOFPID(mat_morph=mat_morph).init()
     gofpid.detect(img)
+
+
+def test_gofpid_matmorph_errors():
+    """Test parameter mat_morph errors."""
+    with pytest.raises(ValueError):  # no 'fun' in parameters
+         GOFPID(mat_morph=[{
+             'kernel': cv.getStructuringElement(cv.MORPH_RECT, (5, 5))
+         }]).init()
+
+
+def test_gofpid_intdetect_errors():
+    """Test parameter int_detect errors."""
+    with pytest.raises(ValueError):  # no 'presence_max' in parameters
+         GOFPID(int_detect={'fake': 1}).init()

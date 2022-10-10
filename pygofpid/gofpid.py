@@ -209,7 +209,8 @@ class GOFPID():
         # blob tracking
         self._track_blob()
 
-        # post-filtering: perimeter, perspective #TODO
+        # post-filtering: perimeter, perspective
+        self._post_filter()
 
         # intrusion detection
         y = self._detect_blob()
@@ -291,6 +292,10 @@ class GOFPID():
                 return 1
         else:
             return 0
+
+    def _post_filter(self):  #TODO
+        """Post-filter non-intrusions with perimeter and perspective."""
+        pass
 
     def display(self, frame, presence_max=3):
         """On screen display."""
