@@ -206,6 +206,7 @@ class GOFPID():
 
     #TODO: allow to use the first image of video
     def _display_perimeter(self):
+        """Display window to configure perimeter."""
 
         img = 100 * np.ones((200, 300, 3), dtype=np.uint8)
         clone = img.copy()
@@ -234,6 +235,7 @@ class GOFPID():
         return perimeter
 
     def _display_perspective(self):
+        """Display window to configure perspective."""
 
         rects = np.array([[0.1, 0.5], [0.3, 0.9], [0.8, 0.1], [0.9, 0.25]])
         thickness = np.array([[0.02, 0.02]])
@@ -271,10 +273,10 @@ class GOFPID():
                 cv.destroyWindow("Config perspective")
                 break
 
-        rects = normalize_coords(rects, img.shape)
+        perspective = normalize_coords(rects, img.shape)
         if self.verbose:
-            print("Config perspective:\n", rects)
-        return rects
+            print("Config perspective:\n", perspective)
+        return perspective
 
     def detect(self, X):
         """Predict if there is an intrusion in current frame.
@@ -356,7 +358,7 @@ class GOFPID():
                     'contour': self.blobs_[i].copy(),
                     'presence': 1,
                     'absence': 0,
-                    'filter': 'presence',
+                    'filter': {'presence'},
                 })
 
         else:
@@ -377,21 +379,25 @@ class GOFPID():
                     if dist[i, j_min] < 100:  # pair found
                         dist[i, j_min] = -1
                         self.tracked_blobs_[j_min]['contour'] = self.blobs_[i].copy()
-                        self.tracked_blobs_[j_min]['presence'] += 1
                         self.tracked_blobs_[j_min]['absence'] = 0
+                        self.tracked_blobs_[j_min]['presence'] += 1
+                        if self.tracked_blobs_[j_min]['presence'] >= self.int_detect['presence_max'] \
+                                and 'presence' in self.tracked_blobs_[j_min]['filter']:
+                            self.tracked_blobs_[j_min]['filter'].remove('presence')
                     else:
                         self.tracked_blobs_.append({
                             'contour': self.blobs_[i].copy(),
                             'presence': 1,
                             'absence': 0,
-                            'filter': 'presence',
+                            'filter': {'presence'},
                         })
 
                 for i in range(n_tracked_blobs - 1, 0, -1):
                     if np.all(dist[:, i] >= 0): # no pair found
                         self.tracked_blobs_[i]['presence'] = 0
+                        self.tracked_blobs_[i]['filter'].add('presence')
                         self.tracked_blobs_[i]['absence'] += 1
-                        if self.tracked_blobs_[i]['absence'] > absence_max:
+                        if self.tracked_blobs_[i]['absence'] >= absence_max:
                             self.tracked_blobs_.pop(i)
 
     def _post_filter(self):
@@ -406,13 +412,16 @@ class GOFPID():
         anchors = self._get_anchors(
             [blob['contour'] for blob in self.tracked_blobs_]
         )
-        for i in range(len(anchors)): # TODO : à tester!
+        for i, anchor in enumerate(anchors): # TODO : à tester!
             if cv.pointPolygonTest(
                 self.post_filter['perimeter'],
-                (anchors[i][0], anchors[i][1]),
+                anchor,
                 False,
             ) < 0:  # object not in perimeter
-                self.tracked_blobs_[i]['filter'] = 'perimeter'
+                self.tracked_blobs_[i]['filter'].add('perimeter')
+            else:
+                if 'perimeter' in self.tracked_blobs_[i]['filter']:
+                    self.tracked_blobs_[i]['filter'].remove('perimeter')
 
         # perspective
         # TODO: coeff perspective=0.75
@@ -424,10 +433,11 @@ class GOFPID():
 
         y = 0
         for i, blob in enumerate(self.tracked_blobs_):
-            if blob['presence'] > self.int_detect.get('presence_max'):
-                self.tracked_blobs_[i]['filter'] = None
+            if blob['filter'] == set():
                 y = 1
 
+        if self.verbose and y == 1:
+            print("Intrusion detected")
         return y
 
     def display(self, X):
@@ -442,12 +452,12 @@ class GOFPID():
         cv.drawContours(X, [self.post_filter['perimeter']], 0, (25, 200, 200))
 
         for blob in self.tracked_blobs_:
-            if blob['filter'] == 'presence':
-                color = (0, 255, 0)
-            elif blob['filter'] == 'perimeter':
-                color = (255, 0, 0)
-            elif blob['filter'] == None:
+            if blob['filter'] == set():
                 color = (0, 0, 255)
+            elif 'perimeter' in blob['filter']:
+                color = (255, 0, 0)
+            elif 'presence' in blob['filter']:
+                color = (0, 255, 0)
             else:
                 raise ValueError('Unknown filtering type')
             cv.drawContours(X, [blob['contour']], 0, color)
@@ -463,7 +473,7 @@ class FrameDifferencing():
 
     Parameters
     ----------
-    threshold : float, default=10
+    threshold : float, default=5
         Threshold on absolute difference to detect foreground.
 
     References
@@ -504,4 +514,3 @@ class FrameDifferencing():
         self._X = X
 
         return X_new
-
