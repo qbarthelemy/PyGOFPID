@@ -180,6 +180,8 @@ class GOFPID():
             raise ValueError('Parameter post_filter has no key "perspective".')
         if not isinstance(self.post_filter['perspective'], np.ndarray):
             self.post_filter['perspective'] = self._display_perspective()
+        # TODO: calib perspective
+
         if 'presence_max' not in self.int_detect.keys():
             raise ValueError('Parameter int_detect has no key "presence_max".')
 
@@ -187,80 +189,74 @@ class GOFPID():
 
         return self
 
-# buttons for reset and ok
-# allow to use an image from video
-
+    #TODO: allow to use the first image of video
     def _display_perimeter(self):
 
-        img = np.random.randint(0, high=255, size=(200, 300, 3), dtype=np.uint8)
+        img = 100 * np.ones((200, 300, 3), dtype=np.uint8)
         clone = img.copy()
         perimeter = []
 
-        def draw_line(event, x, y, flags, param):
+        def add_line(event, x, y, flags, params):
             if event in [cv.EVENT_LBUTTONDOWN, cv.EVENT_LBUTTONUP]:
                 perimeter.append([x, y])
-                if len(perimeter) > 1:
+                if len(perimeter) >= 2:
                     cv.line(img, perimeter[-2], perimeter[-1], (0, 0, 255), 2)
-                    cv.imshow("Config perimeter", img)
 
         cv.namedWindow("Config perimeter")
-        cv.setMouseCallback("Config perimeter", draw_line)
-
-        # keep looping until the 'c' key is pressed
+        cv.setMouseCallback("Config perimeter", add_line)
         while True:
-            # display the image and wait for a keypress
             cv.imshow("Config perimeter", img)
             key = cv.waitKey(1) & 0xFF
-            # if the 'r' key is pressed, reset image
-            if key == ord("r"):
+            if key == ord("r"):  # 'r' key => reset window
                 img = clone.copy()
-            # if the 'c' key is pressed, break from the loop
-            elif key == ord("c"):
+            elif key == ord("c") and len(perimeter) >= 3:  # 'c' key => close
+                cv.destroyWindow("Config perimeter")
                 break
-        cv.destroyWindow("Config perimeter")
 
-        perimeter = np.asarray(perimeter, dtype=np.float64)
-        perimeter[:, 0] /= img.shape[1]
-        perimeter[:, 1] /= img.shape[0]
+        perimeter = normalize_coords(perimeter, img.shape)
         if self.verbose:
             print("Config perimeter:\n", perimeter)
         return perimeter
 
-# TODO: display rectangles, and allow to modify them
     def _display_perspective(self):
 
-        img = np.random.randint(0, high=255, size=(200, 300, 3), dtype=np.uint8)
+        rects = np.array([[0.1, 0.5], [0.3, 0.9], [0.8, 0.1], [0.9, 0.25]])
+        thickness = np.array([[0.02, 0.02]])
+        img = 100 * np.ones((200, 300, 3), dtype=np.uint8)
         clone = img.copy()
-        rects = []
+        rects = unnormalize_coords(rects, img.shape, dtype=np.int32)
+        thickness = unnormalize_coords(thickness, img.shape, dtype=np.int32)[0]
 
-        def draw_rectangle(event, x, y, flags, param):
-            global rect
+        def plot_rectangles(img, rects, thickness):
+            cv.rectangle(img, rects[0], rects[1], (0, 0, 255), 2)
+            cv.rectangle(img, rects[0] - thickness, rects[0] + thickness, (0, 0, 255), -1)
+            cv.rectangle(img, rects[1] - thickness, rects[1] + thickness, (0, 0, 255), -1)
+            cv.rectangle(img, rects[2], rects[3], (0, 0, 255), 2)
+            cv.rectangle(img, rects[2] - thickness, rects[2] + thickness, (0, 0, 255), -1)
+            cv.rectangle(img, rects[3] - thickness, rects[3] + thickness, (0, 0, 255), -1)
+
+        def update_rectangle(event, x, y, flags, params):
+            global i_rect
             if event == cv.EVENT_LBUTTONDOWN:
-                rect = [[x, y]]
-            elif event == cv.EVENT_LBUTTONUP:
-                rect.append([x, y])
-                cv.rectangle(img, rect[0], rect[1], (0, 0, 255), 2)
-                cv.imshow("Config perspective", img)
-                rects.append(rect)
+                i_rect = is_in_rectangles((x, y), rects, thickness)
+            elif event == cv.EVENT_LBUTTONUP and i_rect >= 0:
+                rects[i_rect] = [x, y]
+                #img = clone.copy()
+                plot_rectangles(img, rects, thickness)
 
         cv.namedWindow("Config perspective")
-        cv.setMouseCallback("Config perspective", draw_rectangle)
-
-        # keep looping until the 'c' key is pressed
+        cv.setMouseCallback("Config perspective", update_rectangle)
+        plot_rectangles(img, rects, thickness)
         while True:
-            # display the image and wait for a keypress
             cv.imshow("Config perspective", img)
             key = cv.waitKey(1) & 0xFF
-            # if the 'r' key is pressed, reset image
-            if key == ord("r"):
+            if key == ord("r"):  # 'r' key => reset window
                 img = clone.copy()
-            # if the 'c' key is pressed, break from the loop
-            elif key == ord("c"):
+            elif key == ord("c"):  # 'c' key => close
+                cv.destroyWindow("Config perspective")
                 break
-        cv.destroyWindow("Config perspective")
 
-        # TODO: normalized coordinates
-
+        rects = normalize_coords(rects, img.shape)
         if self.verbose:
             print("Config perspective:\n", rects)
         return rects
@@ -351,7 +347,7 @@ class GOFPID():
         else:
             n_tracked_blobs = len(self.tracked_blobs_)
             if n_blobs > 0 and n_tracked_blobs > 0:
-                # parwise distances
+                # pairwise distances
                 blobs_cent = get_centers(self.blobs_)
                 tracked_blobs_cent = get_centers(
                     [blob['contour'] for blob in self.tracked_blobs_]
@@ -395,7 +391,7 @@ class GOFPID():
         anchors = self._get_anchors(
             [blob['contour'] for blob in self.tracked_blobs_]
         )
-        for i in range(len(anchors)):
+        for i in range(len(anchors)): # TODO : à tester!
             if cv.pointPolygonTest(
                 self.post_filter['perimeter'],
                 (anchors[i][0], anchors[i][1]),
@@ -403,7 +399,8 @@ class GOFPID():
             ) < 0:  # object not in perimeter
                 self.tracked_blobs_[i]['filter'] = 'perimeter'
 
-        # perspective  #TODO
+        # perspective
+        # TODO: coeff perspective=0.75
 
     def _detect_blob(self):
         """Detect intrusion blob by blob."""
@@ -431,18 +428,20 @@ class GOFPID():
 
         for blob in self.tracked_blobs_:
             if blob['filter'] == 'presence':
-                cv.drawContours(X, [blob['contour']], 0, (0, 255, 0))
+                color = (0, 255, 0)
             elif blob['filter'] == 'perimeter':
-                cv.drawContours(X, [blob['contour']], 0, (255, 0, 0))
+                color = (255, 0, 0)
             elif blob['filter'] == None:
-                cv.drawContours(X, [blob['contour']], 0, (0, 0, 255))
+                color = (0, 0, 255)
             else:
                 raise ValueError('Unknown filtering type')
+            cv.drawContours(X, [blob['contour']], 0, color)
 
         cv.imshow('Frame', X)
 
 
 ###############################################################################
+
 
 class FrameDifferencing():
     """Foreground detection by frame differencing.
@@ -494,7 +493,9 @@ class FrameDifferencing():
 
 ###############################################################################
 
-def get_centers(contours):
+#TODO: module helpers
+
+def get_centers(contours, dtype=np.uint8):
     """Compute centers of contours."""
     centers = []
     for contour in contours:
@@ -502,10 +503,10 @@ def get_centers(contours):
         x = int(moments["m10"] / moments["m00"])
         y = int(moments["m01"] / moments["m00"])
         centers.append([x, y])
-    return np.array(centers, dtype=np.uint8)
+    return np.array(centers, dtype=dtype)
 
 
-def get_bottoms(contours):
+def get_bottoms(contours, dtype=np.uint8):
     """Compute middle-bottom points of contours."""
     bottoms = []
     for contour in contours:
@@ -513,4 +514,34 @@ def get_bottoms(contours):
         x = int(moments["m10"] / moments["m00"])
         y = max(contour[:, 1])
         bottoms.append([x, y])
-    return np.array(bottoms, dtype=np.uint8)
+    return np.array(bottoms, dtype=dtype)
+
+
+def normalize_coords(coords, shape):
+    coords = np.asarray(coords, dtype=np.float64)
+    coords[:, 0] /= shape[1]
+    coords[:, 1] /= shape[0]
+    return coords
+
+
+def unnormalize_coords(coords, shape, dtype=np.uint8):
+    coords[:, 0] *= shape[1]
+    coords[:, 1] *= shape[0]
+    return coords.astype(dtype)
+
+
+def is_in_rectangles(coord, centers, thickness):
+    for i, center in enumerate(centers):
+        if cv.pointPolygonTest(
+            np.array([
+                [center[0] - thickness[0], center[1] - thickness[1]],
+                [center[0] - thickness[0], center[1] + thickness[1]],
+                [center[0] + thickness[0], center[1] + thickness[1]],
+                [center[0] + thickness[0], center[1] - thickness[1]],
+            ]),
+            coord,
+            False,
+        ) >= 0:
+            return i
+    else:
+        return -1

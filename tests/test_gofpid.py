@@ -10,8 +10,9 @@ np.random.seed(17)
 post_filter={
     'perimeter': np.array([[0, 0], [0, 1], [1, 1], [1, 0]], dtype=np.float64),
     'anchor': 'center',
-    'perspective': np.array([[0, 0], [0, 1], [1, 1], [1, 0]], dtype=np.float64), #TODO
+    'perspective': np.array([[0.1, 0.5], [0.3, 0.9], [0.8, 0.1], [0.9, 0.25]]),
 }
+
 
 def test_gofpid_errors():
     """Test GOFPID errors."""
@@ -147,6 +148,9 @@ def test_gofpid_intdetect_errors():
         ).init()
 
 
+###############################################################################
+
+
 def test_get_centers():
     """Test get_centers."""
     contours = [np.array([[0, 0], [0, 10], [10, 10], [10, 0]], dtype=np.int32)]
@@ -161,4 +165,7 @@ def test_get_bottoms():
     bottoms = get_bottoms(contours)
     assert bottoms[0][0] == 5
     assert bottoms[0][1] == 10
+
+
+#TODO def test_normalize_coords():
 

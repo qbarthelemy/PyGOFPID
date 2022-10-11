@@ -36,7 +36,7 @@ while True:
     gofpid.display(frame)
     #cv.imshow('Motion mask', gofpid.foreground_mask_)
 
-    if cv.waitKey(1) & 0xFF == ord('q'):
+    if cv.waitKey(1) & 0xFF == ord('c'):
         capture.release()
         cv.destroyAllWindows()
         break
