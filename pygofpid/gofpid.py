@@ -1,7 +1,16 @@
+"""GOFPID."""
 
 import numpy as np
 from scipy.spatial.distance import cdist
 import cv2 as cv
+
+from .helpers import (
+    get_centers,
+    get_bottoms,
+    is_in_rectangles,
+    normalize_coords,
+    unnormalize_coords,
+)
 
 
 class GOFPID():
@@ -168,6 +177,10 @@ class GOFPID():
             raise ValueError('Parameter post_filter has no key "perimeter".')
         if not isinstance(self.post_filter['perimeter'], np.ndarray):
             self.post_filter['perimeter'] = self._display_perimeter()
+        if self.post_filter['perimeter'].shape[0] < 3:
+            raise ValueError('Parameter perimeter has not the good shape.')
+        if self.post_filter['perimeter'].shape[1] != 2:
+            raise ValueError('Parameter perimeter has not the good shape.')
         if 'anchor' not in self.post_filter.keys():
             raise ValueError('Parameter post_filter has no key "anchor".')
         if self.post_filter.get('anchor') == 'center':
@@ -180,7 +193,9 @@ class GOFPID():
             raise ValueError('Parameter post_filter has no key "perspective".')
         if not isinstance(self.post_filter['perspective'], np.ndarray):
             self.post_filter['perspective'] = self._display_perspective()
-        # TODO: calib perspective
+        if self.post_filter['perspective'].shape != (4, 2):
+            raise ValueError('Parameter perspective has not the good shape.')
+        # TODO: fit_perspective()
 
         if 'presence_max' not in self.int_detect.keys():
             raise ValueError('Parameter int_detect has no key "presence_max".')
@@ -241,7 +256,7 @@ class GOFPID():
                 i_rect = is_in_rectangles((x, y), rects, thickness)
             elif event == cv.EVENT_LBUTTONUP and i_rect >= 0:
                 rects[i_rect] = [x, y]
-                #img = clone.copy()
+                #img = clone.copy()  #FIXME
                 plot_rectangles(img, rects, thickness)
 
         cv.namedWindow("Config perspective")
@@ -490,58 +505,3 @@ class FrameDifferencing():
 
         return X_new
 
-
-###############################################################################
-
-#TODO: module helpers
-
-def get_centers(contours, dtype=np.uint8):
-    """Compute centers of contours."""
-    centers = []
-    for contour in contours:
-        moments = cv.moments(contour)
-        x = int(moments["m10"] / moments["m00"])
-        y = int(moments["m01"] / moments["m00"])
-        centers.append([x, y])
-    return np.array(centers, dtype=dtype)
-
-
-def get_bottoms(contours, dtype=np.uint8):
-    """Compute middle-bottom points of contours."""
-    bottoms = []
-    for contour in contours:
-        moments = cv.moments(contour)
-        x = int(moments["m10"] / moments["m00"])
-        y = max(contour[:, 1])
-        bottoms.append([x, y])
-    return np.array(bottoms, dtype=dtype)
-
-
-def normalize_coords(coords, shape):
-    coords = np.asarray(coords, dtype=np.float64)
-    coords[:, 0] /= shape[1]
-    coords[:, 1] /= shape[0]
-    return coords
-
-
-def unnormalize_coords(coords, shape, dtype=np.uint8):
-    coords[:, 0] *= shape[1]
-    coords[:, 1] *= shape[0]
-    return coords.astype(dtype)
-
-
-def is_in_rectangles(coord, centers, thickness):
-    for i, center in enumerate(centers):
-        if cv.pointPolygonTest(
-            np.array([
-                [center[0] - thickness[0], center[1] - thickness[1]],
-                [center[0] - thickness[0], center[1] + thickness[1]],
-                [center[0] + thickness[0], center[1] + thickness[1]],
-                [center[0] + thickness[0], center[1] - thickness[1]],
-            ]),
-            coord,
-            False,
-        ) >= 0:
-            return i
-    else:
-        return -1

@@ -3,14 +3,17 @@
 import pytest
 import numpy as np
 import cv2 as cv
-from pygofpid.gofpid import GOFPID, get_centers, get_bottoms
+from pygofpid.gofpid import GOFPID
 
 np.random.seed(17)
 
-post_filter={
-    'perimeter': np.array([[0, 0], [0, 1], [1, 1], [1, 0]], dtype=np.float64),
+
+perimeter = np.array([[0, 0], [0, 1], [1, 1], [1, 0]], dtype=np.float64)
+perspective = np.array([[0.1, 0.5], [0.3, 0.9], [0.8, 0.1], [0.9, 0.25]])
+post_filter = {
+    'perimeter': perimeter,
     'anchor': 'center',
-    'perspective': np.array([[0.1, 0.5], [0.3, 0.9], [0.8, 0.1], [0.9, 0.25]]),
+    'perspective': perspective,
 }
 
 
@@ -29,7 +32,7 @@ def test_gofpid_errors():
     [None, cv.COLOR_BGR2GRAY, cv.COLOR_RGB2GRAY]
 )
 def test_gofpid_convert(convert):
-    """Test parameter convert."""
+    """Test convert parameter."""
     gofpid = GOFPID(
         convert=convert,
         post_filter=post_filter,
@@ -59,7 +62,7 @@ def test_gofpid_convert(convert):
     ]
 )
 def test_gofpid_blur(size, blur):
-    """Test parameter blur."""
+    """Test blur parameters."""
     gofpid = GOFPID(
         blur=blur,
         post_filter=post_filter,
@@ -69,7 +72,7 @@ def test_gofpid_blur(size, blur):
 
 
 def test_gofpid_blur_errors():
-    """Test parameter blur errors."""
+    """Test blur errors."""
     with pytest.raises(ValueError):  # no 'fun' in parameters
         GOFPID(
             blur={'ksize': (3, 3)},
@@ -80,7 +83,7 @@ def test_gofpid_blur_errors():
 @pytest.mark.parametrize("size", [(64, 64), (64, 64, 1), (64, 64, 3)])
 @pytest.mark.parametrize("frg_detect", ['MOG2', 'KNN', 'FD'])
 def test_gofpid_frgdetect(size, frg_detect):
-    """Test parameter frg_detect."""
+    """Test frg_detect parameters."""
     gofpid = GOFPID(
         frg_detect=frg_detect,
         post_filter=post_filter,
@@ -92,7 +95,7 @@ def test_gofpid_frgdetect(size, frg_detect):
 
 
 def test_gofpid_frgdetect_errors():
-    """Test parameter frg_detect errors."""
+    """Test frg_detect errors."""
     with pytest.raises(ValueError):  # unknown method
         GOFPID(
             frg_detect='blabla',
@@ -118,7 +121,7 @@ def test_gofpid_frgdetect_errors():
     ]
 )
 def test_gofpid_matmorph(size, mat_morph):
-    """Test parameter mat_morph."""
+    """Test mat_morph parameters."""
     gofpid = GOFPID(
         mat_morph=mat_morph,
         post_filter=post_filter,
@@ -128,7 +131,7 @@ def test_gofpid_matmorph(size, mat_morph):
 
 
 def test_gofpid_matmorph_errors():
-    """Test parameter mat_morph errors."""
+    """Test mat_morph errors."""
     with pytest.raises(ValueError):  # no 'fun' in parameters
         GOFPID(
             mat_morph=[
@@ -137,35 +140,49 @@ def test_gofpid_matmorph_errors():
             post_filter=post_filter,
         ).init()
 
-# TODO test_gofpid_postfilter():
+
+@pytest.mark.parametrize(
+    "post_filter",
+    [
+        {
+            'anchor': 'center',
+            'perspective': perspective,
+        },
+        {
+            'perimeter': np.array([[1, 5], [3, 9]]),
+            'anchor': 'center',
+            'perspective': perspective,
+        },
+        {
+            'perimeter': perimeter,
+            'perspective': perspective,
+        },
+        {
+            'perimeter': perimeter,
+            'anchor': 'blabla',
+            'perspective': perspective,
+        },
+        {
+            'perimeter': perimeter,
+            'anchor': 'center',
+        },
+        {
+            'perimeter': perimeter,
+            'anchor': 'center',
+            'perspective': np.array([[1, 5, 2], [3, 9, 4]]),
+        },
+    ]
+)
+def test_gofpid_postfilter_errors(post_filter):
+    """Test post_filter errors."""
+    with pytest.raises(ValueError):
+        GOFPID(post_filter=post_filter).init()
+
 
 def test_gofpid_intdetect_errors():
-    """Test parameter int_detect errors."""
+    """Test int_detect errors."""
     with pytest.raises(ValueError):  # no 'presence_max' in parameters
         GOFPID(
             post_filter=post_filter,
             int_detect={'fake': 1},
         ).init()
-
-
-###############################################################################
-
-
-def test_get_centers():
-    """Test get_centers."""
-    contours = [np.array([[0, 0], [0, 10], [10, 10], [10, 0]], dtype=np.int32)]
-    centers = get_centers(contours)
-    assert centers[0][0] == 5
-    assert centers[0][1] == 5
-
-
-def test_get_bottoms():
-    """Test get_bottoms."""
-    contours = [np.array([[0, 0], [0, 10], [10, 10], [10, 0]], dtype=np.int32)]
-    bottoms = get_bottoms(contours)
-    assert bottoms[0][0] == 5
-    assert bottoms[0][1] == 10
-
-
-#TODO def test_normalize_coords():
-
