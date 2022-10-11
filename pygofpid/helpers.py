@@ -4,7 +4,7 @@ import numpy as np
 import cv2 as cv
 
 
-def get_centers(contours, dtype=np.uint8):
+def get_centers(contours, dtype=np.int16):
     """Compute centers of contours."""
     centers = []
     for contour in contours:
@@ -15,13 +15,13 @@ def get_centers(contours, dtype=np.uint8):
     return np.array(centers, dtype=dtype)
 
 
-def get_bottoms(contours, dtype=np.uint8):
+def get_bottoms(contours, dtype=np.int16):
     """Compute middle-bottom points of contours."""
     bottoms = []
     for contour in contours:
         moments = cv.moments(contour)
         x = int(moments["m10"] / moments["m00"])
-        y = max(contour[:, 1])
+        y = max(contour[:, 1])  # downward axis => bottom = max
         bottoms.append([x, y])
     return np.array(bottoms, dtype=dtype)
 

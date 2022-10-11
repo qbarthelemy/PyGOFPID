@@ -141,6 +141,20 @@ def test_gofpid_matmorph_errors():
         ).init()
 
 
+@pytest.mark.parametrize("anchor", ['center', 'bottom'])
+def test_gofpid_postfilter(anchor):
+    """Test postfilter parameters."""
+    gofpid = GOFPID(
+        post_filter={
+            'perimeter': perimeter,
+            'anchor': anchor,
+            'perspective': perspective,
+        },
+    ).init()
+    img = np.random.randint(0, high=255, size=(64, 64), dtype=np.uint8)
+    gofpid.detect(img)
+
+
 @pytest.mark.parametrize(
     "post_filter",
     [

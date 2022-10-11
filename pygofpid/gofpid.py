@@ -80,7 +80,7 @@ class GOFPID():
     foreground_mask_ : ndarray of int, shape (n_height, n_width, n_color)
         Foreground mask.
 
-    blobs_ : list of n_blobs lists of n_points lists of two int
+    blobs_ : list of n_blobs arrays of n_points of two ints
         Instantaneous blobs created from foreground mask.
 
     tracked_blobs_ : list of n_blobs dict
@@ -89,7 +89,7 @@ class GOFPID():
         - contour: contour of blob;
         - presence: presence count;
         - absence: absence count;
-        - filter: typf of filtering.
+        - filter: types of filtering.
 
     References
     ----------
@@ -123,7 +123,7 @@ class GOFPID():
         ],
         post_filter={
             'perimeter': None,
-            'anchor': 'center',
+            'anchor': 'center',  #TODO: test bottom
             'perspective': None,
         },
         int_detect={'presence_max': 3},
@@ -342,10 +342,9 @@ class GOFPID():
         )
 
         # filter blobs by area
-        areas = [cv.contourArea(contour) for contour in contours]
         self.blobs_ = [
-            contour for contour, area in zip(contours, areas)
-            if area >= area_min
+            contour for contour in contours
+            if cv.contourArea(contour) >= area_min
         ]
 
     def _track_blob(self, absence_max=3):
@@ -381,9 +380,8 @@ class GOFPID():
                         self.tracked_blobs_[j_min]['contour'] = self.blobs_[i].copy()
                         self.tracked_blobs_[j_min]['absence'] = 0
                         self.tracked_blobs_[j_min]['presence'] += 1
-                        if self.tracked_blobs_[j_min]['presence'] >= self.int_detect['presence_max'] \
-                                and 'presence' in self.tracked_blobs_[j_min]['filter']:
-                            self.tracked_blobs_[j_min]['filter'].remove('presence')
+                        if self.tracked_blobs_[j_min]['presence'] >= self.int_detect['presence_max']:
+                            self.tracked_blobs_[j_min]['filter'].discard('presence')
                     else:
                         self.tracked_blobs_.append({
                             'contour': self.blobs_[i].copy(),
@@ -410,7 +408,8 @@ class GOFPID():
             self.post_filter['perimeter'] = perimeter.astype(np.int32)
 
         anchors = self._get_anchors(
-            [blob['contour'] for blob in self.tracked_blobs_]
+            [blob['contour'] for blob in self.tracked_blobs_],
+            dtype=np.int16
         )
         for i, anchor in enumerate(anchors): # TODO : à tester!
             if cv.pointPolygonTest(
@@ -419,9 +418,8 @@ class GOFPID():
                 False,
             ) < 0:  # object not in perimeter
                 self.tracked_blobs_[i]['filter'].add('perimeter')
-            else:
-                if 'perimeter' in self.tracked_blobs_[i]['filter']:
-                    self.tracked_blobs_[i]['filter'].remove('perimeter')
+            else:  # object in perimeter
+                self.tracked_blobs_[i]['filter'].discard('perimeter')
 
         # perspective
         # TODO: coeff perspective=0.75
@@ -461,6 +459,8 @@ class GOFPID():
             else:
                 raise ValueError('Unknown filtering type')
             cv.drawContours(X, [blob['contour']], 0, color)
+            anchor = self._get_anchors([blob['contour']], dtype=np.int16)[0]
+            cv.circle(X, anchor, 4, color, -1)
 
         cv.imshow('Frame', X)
 
