@@ -4,6 +4,16 @@ import numpy as np
 import cv2 as cv
 
 
+def get_first_frame(video_filename):
+    """Get first frame of video."""
+    vidcap = cv.VideoCapture(video_filename)
+    if not vidcap.isOpened():
+        raise ValueError('Unable to open input filemane.')
+    _, frame = vidcap.read()
+    vidcap.release()
+    return frame
+
+
 def get_centers(contours, dtype=np.int16):
     """Compute centers of contours."""
     centers = []

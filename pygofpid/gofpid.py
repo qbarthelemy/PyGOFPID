@@ -5,6 +5,7 @@ from scipy.spatial.distance import cdist
 import cv2 as cv
 
 from .helpers import (
+    get_first_frame,
     get_centers,
     get_bottoms,
     is_in_rectangles,
@@ -25,7 +26,7 @@ class GOFPID():
     3. foreground mask denoising by mathematical morphology;
     4. foreground blob creation;
     5. blob tracking (WIP);
-    6. post-filtering (perimeter, perspective) (TODO);
+    6. post-filtering (perimeter, perspective, presence) (WIP);
     7. intrusion detection.
 
     Parameters
@@ -57,7 +58,7 @@ class GOFPID():
         If None, no processing.
 
     post_filter : dict, default={'perimeter': None, 'anchor_point': 'center', \
-            'perspective': None}
+            'perspective': None, 'presence_max': 3}
         Dictionary containing parameters to filter non-intrusions:
 
         - perimeter: list of points. If None, a window allows to draw it.
@@ -68,12 +69,12 @@ class GOFPID():
           in the foreground and a second in the background).
           If None, a window allows to draw these rectangles according to the
           size of a person placed in these places in the image.
-
-    int_detect : dict, default={'presence_max': 3}
-        Dictionary containing parameters to detect intrusion:
-
         - presence_max: number of frames where objet is present and tracked
           before raising intrusion alarm.
+        - video_filename: filename of video to display its first frame to
+          configure perimeter and perspective.
+
+        On configuration windows, press 'r' key to reset, 'c' to close.
 
     Attributes
     ----------
@@ -125,8 +126,8 @@ class GOFPID():
             'perimeter': None,
             'anchor': 'center',  #TODO: test bottom
             'perspective': None,
+            'presence_max': 3,
         },
-        int_detect={'presence_max': 3},
         verbose=False
     ):
         self.convert = convert
@@ -134,12 +135,11 @@ class GOFPID():
         self.frg_detect = frg_detect
         self.mat_morph = mat_morph
         self.post_filter = post_filter
-        self.int_detect = int_detect
         self.verbose = verbose
         self.input_shape = None
 
     def init(self):
-        """Initialize, checking parameters and setting pipeline. No training.
+        """Initialize, checking parameters and setting pipeline.
 
         Returns
         -------
@@ -196,20 +196,21 @@ class GOFPID():
         if self.post_filter['perspective'].shape != (4, 2):
             raise ValueError('Parameter perspective has not the good shape.')
         # TODO: fit_perspective()
-
-        if 'presence_max' not in self.int_detect.keys():
-            raise ValueError('Parameter int_detect has no key "presence_max".')
+        if 'presence_max' not in self.post_filter.keys():
+            raise ValueError('Parameter post_filter has no key "presence_max".')
 
         self.tracked_blobs_ = None
 
         return self
 
-    #TODO: allow to use the first image of video
-    def _display_perimeter(self):
+    def _display_perimeter(self, window_name="Configure perimeter"):
         """Display window to configure perimeter."""
-
-        img = 100 * np.ones((200, 300, 3), dtype=np.uint8)
+        if 'video_filename' in self.post_filter.keys():
+            img = get_first_frame(self.post_filter['video_filename'])
+        else:
+            img = 100 * np.ones((240, 320, 3), dtype=np.uint8)
         clone = img.copy()
+
         perimeter = []
 
         def add_line(event, x, y, flags, params):
@@ -218,15 +219,15 @@ class GOFPID():
                 if len(perimeter) >= 2:
                     cv.line(img, perimeter[-2], perimeter[-1], (0, 0, 255), 2)
 
-        cv.namedWindow("Config perimeter")
-        cv.setMouseCallback("Config perimeter", add_line)
+        cv.namedWindow(window_name)
+        cv.setMouseCallback(window_name, add_line)
         while True:
-            cv.imshow("Config perimeter", img)
+            cv.imshow(window_name, img)
             key = cv.waitKey(1) & 0xFF
             if key == ord("r"):  # 'r' key => reset window
                 img = clone.copy()
             elif key == ord("c") and len(perimeter) >= 3:  # 'c' key => close
-                cv.destroyWindow("Config perimeter")
+                cv.destroyWindow(window_name)
                 break
 
         perimeter = normalize_coords(perimeter, img.shape)
@@ -234,17 +235,20 @@ class GOFPID():
             print("Config perimeter:\n", perimeter)
         return perimeter
 
-    def _display_perspective(self):
+    def _display_perspective(self, window_name="Configure perspective"):
         """Display window to configure perspective."""
+        if 'video_filename' in self.post_filter.keys():
+            img = get_first_frame(self.post_filter['video_filename'])
+        else:
+            img = 100 * np.ones((240, 320, 3), dtype=np.uint8)
+        clone = img.copy()
 
         rects = np.array([[0.1, 0.5], [0.3, 0.9], [0.8, 0.1], [0.9, 0.25]])
         thickness = np.array([[0.02, 0.02]])
-        img = 100 * np.ones((200, 300, 3), dtype=np.uint8)
-        clone = img.copy()
         rects = unnormalize_coords(rects, img.shape, dtype=np.int32)
         thickness = unnormalize_coords(thickness, img.shape, dtype=np.int32)[0]
 
-        def plot_rectangles(img, rects, thickness):
+        def plot_rectangles(img, rects, thickness):  #TODO: in helpers
             cv.rectangle(img, rects[0], rects[1], (0, 0, 255), 2)
             cv.rectangle(img, rects[0] - thickness, rects[0] + thickness, (0, 0, 255), -1)
             cv.rectangle(img, rects[1] - thickness, rects[1] + thickness, (0, 0, 255), -1)
@@ -261,16 +265,16 @@ class GOFPID():
                 #img = clone.copy()  #FIXME
                 plot_rectangles(img, rects, thickness)
 
-        cv.namedWindow("Config perspective")
-        cv.setMouseCallback("Config perspective", update_rectangle)
+        cv.namedWindow(window_name)
+        cv.setMouseCallback(window_name, update_rectangle)
         plot_rectangles(img, rects, thickness)
         while True:
-            cv.imshow("Config perspective", img)
+            cv.imshow(window_name, img)
             key = cv.waitKey(1) & 0xFF
             if key == ord("r"):  # 'r' key => reset window
                 img = clone.copy()
             elif key == ord("c"):  # 'c' key => close
-                cv.destroyWindow("Config perspective")
+                cv.destroyWindow(window_name)
                 break
 
         perspective = normalize_coords(rects, img.shape)
@@ -332,7 +336,7 @@ class GOFPID():
         y = self._detect_blob()
         return y
 
-    def _create_blob(self, area_min=100, dist_min=10):  #TODO: in parameters ?
+    def _create_blob(self, area_min=100): #TODO: in parameters ?
         """Create blobs from foreground mask using contour retrieval."""
         # create blobs using contour retrieval
         _, contours, _ = cv.findContours(
@@ -347,7 +351,7 @@ class GOFPID():
             if cv.contourArea(contour) >= area_min
         ]
 
-    def _track_blob(self, absence_max=3):
+    def _track_blob(self, dist_max=100, absence_max=3): #TODO: in parameters ?
         """Track blobs using only distance to centers."""
         n_blobs = len(self.blobs_)
         if self.tracked_blobs_ is None:
@@ -357,7 +361,7 @@ class GOFPID():
                     'contour': self.blobs_[i].copy(),
                     'presence': 1,
                     'absence': 0,
-                    'filter': {'presence'},
+                    'filter': set(['presence']),
                 })
 
         else:
@@ -375,19 +379,19 @@ class GOFPID():
                 for i in range(n_blobs):
                     j_min = np.argmin(dist[i])
                     #TODO: use features to pair blobs
-                    if dist[i, j_min] < 100:  # pair found
+                    if dist[i, j_min] < dist_max:  # pair found
                         dist[i, j_min] = -1
                         self.tracked_blobs_[j_min]['contour'] = self.blobs_[i].copy()
                         self.tracked_blobs_[j_min]['absence'] = 0
                         self.tracked_blobs_[j_min]['presence'] += 1
-                        if self.tracked_blobs_[j_min]['presence'] >= self.int_detect['presence_max']:
+                        if self.tracked_blobs_[j_min]['presence'] >= self.post_filter['presence_max']:
                             self.tracked_blobs_[j_min]['filter'].discard('presence')
                     else:
                         self.tracked_blobs_.append({
                             'contour': self.blobs_[i].copy(),
                             'presence': 1,
                             'absence': 0,
-                            'filter': {'presence'},
+                            'filter': set(['presence']),
                         })
 
                 for i in range(n_tracked_blobs - 1, 0, -1):

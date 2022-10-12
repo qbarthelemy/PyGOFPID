@@ -8,12 +8,15 @@ from pygofpid.gofpid import GOFPID
 np.random.seed(17)
 
 
+n_reps = 5
+
 perimeter = np.array([[0, 0], [0, 1], [1, 1], [1, 0]], dtype=np.float64)
 perspective = np.array([[0.1, 0.5], [0.3, 0.9], [0.8, 0.1], [0.9, 0.25]])
 post_filter = {
     'perimeter': perimeter,
     'anchor': 'center',
     'perspective': perspective,
+    'presence_max': 3,
 }
 
 
@@ -88,10 +91,9 @@ def test_gofpid_frgdetect(size, frg_detect):
         frg_detect=frg_detect,
         post_filter=post_filter,
     ).init()
-    img1 = np.random.randint(0, high=255, size=size, dtype=np.uint8)
-    gofpid.detect(img1)
-    img2 = np.random.randint(0, high=255, size=size, dtype=np.uint8)
-    gofpid.detect(img2)
+    for _ in range(n_reps):
+        img = np.random.randint(0, high=255, size=size, dtype=np.uint8)
+        gofpid.detect(img)
 
 
 def test_gofpid_frgdetect_errors():
@@ -149,10 +151,12 @@ def test_gofpid_postfilter(anchor):
             'perimeter': perimeter,
             'anchor': anchor,
             'perspective': perspective,
+            'presence_max': 3,
         },
     ).init()
-    img = np.random.randint(0, high=255, size=(64, 64), dtype=np.uint8)
-    gofpid.detect(img)
+    for _ in range(n_reps):
+        img = np.random.randint(0, high=255, size=(64, 64), dtype=np.uint8)
+        gofpid.detect(img)
 
 
 @pytest.mark.parametrize(
@@ -161,29 +165,40 @@ def test_gofpid_postfilter(anchor):
         {
             'anchor': 'center',
             'perspective': perspective,
+            'presence_max': 3,
         },
         {
             'perimeter': np.array([[1, 5], [3, 9]]),
             'anchor': 'center',
             'perspective': perspective,
+            'presence_max': 3,
         },
         {
             'perimeter': perimeter,
             'perspective': perspective,
+            'presence_max': 3,
         },
         {
             'perimeter': perimeter,
             'anchor': 'blabla',
             'perspective': perspective,
+            'presence_max': 3,
         },
         {
             'perimeter': perimeter,
             'anchor': 'center',
+            'presence_max': 3,
         },
         {
             'perimeter': perimeter,
             'anchor': 'center',
             'perspective': np.array([[1, 5, 2], [3, 9, 4]]),
+            'presence_max': 3,
+        },
+        {
+            'perimeter': perimeter,
+            'anchor': 'center',
+            'perspective': perspective,
         },
     ]
 )
@@ -191,12 +206,3 @@ def test_gofpid_postfilter_errors(post_filter):
     """Test post_filter errors."""
     with pytest.raises(ValueError):
         GOFPID(post_filter=post_filter).init()
-
-
-def test_gofpid_intdetect_errors():
-    """Test int_detect errors."""
-    with pytest.raises(ValueError):  # no 'presence_max' in parameters
-        GOFPID(
-            post_filter=post_filter,
-            int_detect={'fake': 1},
-        ).init()
