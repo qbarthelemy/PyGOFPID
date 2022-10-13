@@ -27,6 +27,8 @@ pipeline, composed of:
 6. post-filtering;
 7. intrusion detection.
 
+See `examples` folder for a demo.
+
 ## Comparison
 
 GOFPID is useful for comparison between ancient and new generations of PID,
