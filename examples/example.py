@@ -15,29 +15,36 @@ from pygofpid.gofpid import GOFPID
 
 ###############################################################################
 
-# GOFPID with default parameters
-gofpid = GOFPID().init()
-#gofpid = GOFPID(blur=None, mat_morph=None).init()
-
+# Video
 video_filename = 'people-walking.mp4'
-capture = cv.VideoCapture(video_filename)
-
-if not capture.isOpened():
+vidcap = cv.VideoCapture(video_filename)
+if not vidcap.isOpened():
     print('Unable to open input filemane')
     exit(0)
 
+# Pipeline GOFPID
+gofpid = GOFPID(
+    post_filter={
+        'perimeter': None,
+        'anchor': 'bottom',
+        'perspective': None,
+        'presence_max': 3,
+        'video_filename': video_filename,
+    },
+    verbose=True
+).init()
+
+# Intrusion detection
 while True:
-    ret, frame = capture.read()
+    _, frame = vidcap.read()
     if frame is None:
         break
 
-    # intrusion detection
     y = gofpid.detect(frame)
     gofpid.display(frame)
-    #cv.imshow('Motion mask', gofpid.foreground_mask_)
 
-    if cv.waitKey(1) & 0xFF == ord('q'):
-        capture.release()
+    if cv.waitKey(1) & 0xFF == ord('c'):
+        vidcap.release()
         cv.destroyAllWindows()
         break
 
