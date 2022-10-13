@@ -28,8 +28,8 @@ def test_get_bottoms():
     """Test get_bottoms."""
     contours = [np.array([[0, 0], [0, 10], [10, 10], [10, 0]], dtype=np.int32)]
     bottom = get_bottoms(contours)[0]
-    assert bottom[0] == 5
-    assert bottom[1] == 10
+    assert bottom[0] == 5   # middle
+    assert bottom[1] == 10  # bottom
 
 
 @pytest.mark.parametrize(

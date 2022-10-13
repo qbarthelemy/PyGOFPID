@@ -6,11 +6,13 @@ import cv2 as cv
 
 from .helpers import (
     get_first_frame,
+    display_config,
     get_centers,
     get_bottoms,
     is_in_rectangles,
     normalize_coords,
     unnormalize_coords,
+    plot_rectangles,
 )
 
 
@@ -57,13 +59,13 @@ class GOFPID():
         'cv.dilate' for dilation [Dltn]_.
         If None, no processing.
 
-    post_filter : dict, default={'perimeter': None, 'anchor_point': 'center', \
+    post_filter : dict, default={'perimeter': None, 'anchor_point': 'bottom', \
             'perspective': None, 'presence_max': 3}
         Dictionary containing parameters to filter non-intrusions:
 
         - perimeter: list of points. If None, a window allows to draw it.
-        - anchor: 'center' or 'bottom', to determine if an object is in the
-          perimeter.
+        - anchor: point of object, 'center' or 'bottom', to determine if it is
+          in the perimeter.
         - perspective: list of four points, defining the minimum sizes of
           objects to detect. Two boxes represent a person in the image (one box
           in the foreground and a second in the background).
@@ -81,7 +83,7 @@ class GOFPID():
     foreground_mask_ : ndarray of int, shape (n_height, n_width, n_color)
         Foreground mask.
 
-    blobs_ : list of n_blobs arrays of n_points of two ints
+    blobs_ : list of OpenCV contours
         Instantaneous blobs created from foreground mask.
 
     tracked_blobs_ : list of n_blobs dict
@@ -124,7 +126,7 @@ class GOFPID():
         ],
         post_filter={
             'perimeter': None,
-            'anchor': 'center',  #TODO: test bottom
+            'anchor': 'bottom',
             'perspective': None,
             'presence_max': 3,
         },
@@ -136,7 +138,6 @@ class GOFPID():
         self.mat_morph = mat_morph
         self.post_filter = post_filter
         self.verbose = verbose
-        self.input_shape = None
 
     def init(self):
         """Initialize, checking parameters and setting pipeline.
@@ -176,7 +177,7 @@ class GOFPID():
         if 'perimeter' not in self.post_filter.keys():
             raise ValueError('Parameter post_filter has no key "perimeter".')
         if not isinstance(self.post_filter['perimeter'], np.ndarray):
-            self.post_filter['perimeter'] = self._display_perimeter()
+            self.post_filter['perimeter'] = self._config_perimeter()
         if self.post_filter['perimeter'].shape[0] < 3:
             raise ValueError('Parameter perimeter has not the good shape.')
         if self.post_filter['perimeter'].shape[1] != 2:
@@ -192,24 +193,21 @@ class GOFPID():
         if 'perspective' not in self.post_filter.keys():
             raise ValueError('Parameter post_filter has no key "perspective".')
         if not isinstance(self.post_filter['perspective'], np.ndarray):
-            self.post_filter['perspective'] = self._display_perspective()
+            #self.post_filter['perspective'] = self._config_perspective()
+            self.post_filter['perspective'] = np.array([[0.1, 0.5], [0.3, 0.9], [0.8, 0.1], [0.9, 0.25]])
         if self.post_filter['perspective'].shape != (4, 2):
-            raise ValueError('Parameter perspective has not the good shape.')
-        # TODO: fit_perspective()
+             raise ValueError('Parameter perspective has not the good shape.')
         if 'presence_max' not in self.post_filter.keys():
             raise ValueError('Parameter post_filter has no key "presence_max".')
 
         self.tracked_blobs_ = None
+        self.input_shape_ = None
 
         return self
 
-    def _display_perimeter(self, window_name="Configure perimeter"):
+    def _config_perimeter(self, window_name="Configure perimeter"):
         """Display window to configure perimeter."""
-        if 'video_filename' in self.post_filter.keys():
-            img = get_first_frame(self.post_filter['video_filename'])
-        else:
-            img = 100 * np.ones((240, 320, 3), dtype=np.uint8)
-        clone = img.copy()
+        img, clone = self._get_config_img()
 
         perimeter = []
 
@@ -221,40 +219,21 @@ class GOFPID():
 
         cv.namedWindow(window_name)
         cv.setMouseCallback(window_name, add_line)
-        while True:
-            cv.imshow(window_name, img)
-            key = cv.waitKey(1) & 0xFF
-            if key == ord("r"):  # 'r' key => reset window
-                img = clone.copy()
-            elif key == ord("c") and len(perimeter) >= 3:  # 'c' key => close
-                cv.destroyWindow(window_name)
-                break
+        display_config(window_name, img, clone)
 
         perimeter = normalize_coords(perimeter, img.shape)
         if self.verbose:
             print("Config perimeter:\n", perimeter)
         return perimeter
 
-    def _display_perspective(self, window_name="Configure perspective"):
+    def _config_perspective(self, window_name="Configure perspective"):
         """Display window to configure perspective."""
-        if 'video_filename' in self.post_filter.keys():
-            img = get_first_frame(self.post_filter['video_filename'])
-        else:
-            img = 100 * np.ones((240, 320, 3), dtype=np.uint8)
-        clone = img.copy()
+        img, clone = self._get_config_img()
 
         rects = np.array([[0.1, 0.5], [0.3, 0.9], [0.8, 0.1], [0.9, 0.25]])
-        thickness = np.array([[0.02, 0.02]])
         rects = unnormalize_coords(rects, img.shape, dtype=np.int32)
+        thickness = np.array([[0.02, 0.02]])
         thickness = unnormalize_coords(thickness, img.shape, dtype=np.int32)[0]
-
-        def plot_rectangles(img, rects, thickness):  #TODO: in helpers
-            cv.rectangle(img, rects[0], rects[1], (0, 0, 255), 2)
-            cv.rectangle(img, rects[0] - thickness, rects[0] + thickness, (0, 0, 255), -1)
-            cv.rectangle(img, rects[1] - thickness, rects[1] + thickness, (0, 0, 255), -1)
-            cv.rectangle(img, rects[2], rects[3], (0, 0, 255), 2)
-            cv.rectangle(img, rects[2] - thickness, rects[2] + thickness, (0, 0, 255), -1)
-            cv.rectangle(img, rects[3] - thickness, rects[3] + thickness, (0, 0, 255), -1)
 
         def update_rectangle(event, x, y, flags, params):
             global i_rect
@@ -268,19 +247,20 @@ class GOFPID():
         cv.namedWindow(window_name)
         cv.setMouseCallback(window_name, update_rectangle)
         plot_rectangles(img, rects, thickness)
-        while True:
-            cv.imshow(window_name, img)
-            key = cv.waitKey(1) & 0xFF
-            if key == ord("r"):  # 'r' key => reset window
-                img = clone.copy()
-            elif key == ord("c"):  # 'c' key => close
-                cv.destroyWindow(window_name)
-                break
+        display_config(window_name, img, clone)
 
         perspective = normalize_coords(rects, img.shape)
         if self.verbose:
             print("Config perspective:\n", perspective)
         return perspective
+
+    def _get_config_img(self):
+        if 'video_filename' in self.post_filter.keys():
+            img = get_first_frame(self.post_filter['video_filename'])
+        else:
+            img = 100 * np.ones((240, 320, 3), dtype=np.uint8)
+        clone = img.copy()
+        return img, clone
 
     def detect(self, X):
         """Predict if there is an intrusion in current frame.
@@ -297,10 +277,17 @@ class GOFPID():
             Prediction of intrusion: 1 if intrusion detected, 0 otherwise.
         """
         # input shape checking
-        if not self.input_shape:
-            self.input_shape = X.shape
+        if not self.input_shape_:
+            self.input_shape_ = X.shape
+            # finish perimeter configuration using first frame
+            self.post_filter['perimeter'] = unnormalize_coords(
+                self.post_filter['perimeter'],
+                self.input_shape_,
+                dtype=np.int32
+            )
+            # TODO: fit_perspective()
         else:
-            if X.shape != self.input_shape:
+            if X.shape != self.input_shape_:
                 raise ValueError('Input shape has changed.')
 
         if self.convert:
@@ -336,7 +323,7 @@ class GOFPID():
         y = self._detect_blob()
         return y
 
-    def _create_blob(self, area_min=100): #TODO: in parameters ?
+    def _create_blob(self, area_min=100): #TODO: in class parameters ?
         """Create blobs from foreground mask using contour retrieval."""
         # create blobs using contour retrieval
         _, contours, _ = cv.findContours(
@@ -351,7 +338,7 @@ class GOFPID():
             if cv.contourArea(contour) >= area_min
         ]
 
-    def _track_blob(self, dist_max=100, absence_max=3): #TODO: in parameters ?
+    def _track_blob(self, dist_max=100, absence_max=3): #TODO: in class parameters ?
         """Track blobs using only distance to centers."""
         n_blobs = len(self.blobs_)
         if self.tracked_blobs_ is None:
@@ -405,16 +392,11 @@ class GOFPID():
     def _post_filter(self):
         """Post-filter non-intrusions with perimeter and perspective."""
         # perimeter
-        perimeter = self.post_filter['perimeter']
-        if np.all((0.0 <= perimeter) & (perimeter <= 1.0)):
-            perimeter[:, 0] *= self.input_shape[1]
-            perimeter[:, 1] *= self.input_shape[0]
-            self.post_filter['perimeter'] = perimeter.astype(np.int32)
-
         anchors = self._get_anchors(
             [blob['contour'] for blob in self.tracked_blobs_],
             dtype=np.int16
         )
+
         for i, anchor in enumerate(anchors): # TODO : à tester!
             if cv.pointPolygonTest(
                 self.post_filter['perimeter'],

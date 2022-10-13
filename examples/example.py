@@ -26,25 +26,22 @@ if not vidcap.isOpened():
 gofpid = GOFPID(
     post_filter={
         'perimeter': None,
-        'anchor': 'center',
+        'anchor': 'bottom',
         'perspective': None,
         'presence_max': 3,
         'video_filename': video_filename,
     },
     verbose=True
 ).init()
-#gofpid = GOFPID(blur=None, mat_morph=None).init()
 
-# Detection
+# Intrusion detection
 while True:
     _, frame = vidcap.read()
     if frame is None:
         break
 
-    # intrusion detection
     y = gofpid.detect(frame)
     gofpid.display(frame)
-    #cv.imshow('Motion mask', gofpid.foreground_mask_)
 
     if cv.waitKey(1) & 0xFF == ord('c'):
         vidcap.release()
