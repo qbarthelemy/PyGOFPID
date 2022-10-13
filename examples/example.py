@@ -10,7 +10,7 @@ https://pythonprogramming.net/static/images/opencv/people-walking.mp4;
 """
 
 import cv2 as cv
-from pygofpid.gofpid import GOFPID
+from pygofpid.methods import GOFPID
 
 
 ###############################################################################
@@ -28,6 +28,7 @@ gofpid = GOFPID(
         'perimeter': None,
         'anchor': 'bottom',
         'perspective': None,
+        'perspective_coeff': 0.5,
         'presence_max': 3,
         'video_filename': video_filename,
     },
