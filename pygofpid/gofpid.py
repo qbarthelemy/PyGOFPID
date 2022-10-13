@@ -6,13 +6,14 @@ import cv2 as cv
 
 from .helpers import (
     get_first_frame,
-    display_config,
+    display_window,
+    plot_rectangles,
     get_centers,
     get_bottoms,
     is_in_rectangles,
     normalize_coords,
     unnormalize_coords,
-    plot_rectangles,
+    SimpleLinearRegression,
 )
 
 
@@ -28,7 +29,7 @@ class GOFPID():
     3. foreground mask denoising by mathematical morphology;
     4. foreground blob creation;
     5. blob tracking (WIP);
-    6. post-filtering (perimeter, perspective, presence) (WIP);
+    6. post-filtering (perimeter, perspective, presence);
     7. intrusion detection.
 
     Parameters
@@ -60,8 +61,8 @@ class GOFPID():
         If None, no processing.
 
     post_filter : dict, default={'perimeter': None, 'anchor_point': 'bottom', \
-            'perspective': None, 'presence_max': 3}
-        Dictionary containing parameters to filter non-intrusions:
+            'perspective': None, 'perspective_coeff': 0.5, 'presence_max': 3}
+        Dictionary containing parameters to filter pre-alarms:
 
         - perimeter: list of points. If None, a window allows to draw it.
         - anchor: point of object, 'center' or 'bottom', to determine if it is
@@ -71,6 +72,8 @@ class GOFPID():
           in the foreground and a second in the background).
           If None, a window allows to draw these rectangles according to the
           size of a person placed in these places in the image.
+        - perspective_coeff: multiplicative coefficient of tolerance on size of
+          perspective.
         - presence_max: number of frames where objet is present and tracked
           before raising intrusion alarm.
         - video_filename: filename of video to display its first frame to
@@ -128,6 +131,7 @@ class GOFPID():
             'perimeter': None,
             'anchor': 'bottom',
             'perspective': None,
+            'perspective_coeff': 0.5,
             'presence_max': 3,
         },
         verbose=False
@@ -193,12 +197,14 @@ class GOFPID():
         if 'perspective' not in self.post_filter.keys():
             raise ValueError('Parameter post_filter has no key "perspective".')
         if not isinstance(self.post_filter['perspective'], np.ndarray):
-            #self.post_filter['perspective'] = self._config_perspective()
-            self.post_filter['perspective'] = np.array([[0.1, 0.5], [0.3, 0.9], [0.8, 0.1], [0.9, 0.25]])
+            self.post_filter['perspective'] = self._config_perspective()
         if self.post_filter['perspective'].shape != (4, 2):
              raise ValueError('Parameter perspective has not the good shape.')
+        if 'perspective_coeff' not in self.post_filter.keys():
+            raise ValueError('Parameter post_filter has no key "perspective_coeff".')
         if 'presence_max' not in self.post_filter.keys():
             raise ValueError('Parameter post_filter has no key "presence_max".')
+        self._calib_perspective()
 
         self.tracked_blobs_ = None
         self.input_shape_ = None
@@ -219,7 +225,7 @@ class GOFPID():
 
         cv.namedWindow(window_name)
         cv.setMouseCallback(window_name, add_line)
-        display_config(window_name, img, clone)
+        display_window(window_name, img, clone)
 
         perimeter = normalize_coords(perimeter, img.shape)
         if self.verbose:
@@ -247,7 +253,7 @@ class GOFPID():
         cv.namedWindow(window_name)
         cv.setMouseCallback(window_name, update_rectangle)
         plot_rectangles(img, rects, thickness)
-        display_config(window_name, img, clone)
+        display_window(window_name, img, clone)
 
         perspective = normalize_coords(rects, img.shape)
         if self.verbose:
@@ -285,7 +291,6 @@ class GOFPID():
                 self.input_shape_,
                 dtype=np.int32
             )
-            # TODO: fit_perspective()
         else:
             if X.shape != self.input_shape_:
                 raise ValueError('Input shape has changed.')
@@ -323,6 +328,14 @@ class GOFPID():
         y = self._detect_blob()
         return y
 
+    def _calib_perspective(self):
+        """Calibrate perspective using linear regression on blob height."""
+        rects = self.post_filter['perspective']
+        self._perspective = SimpleLinearRegression().fit(
+            [max(rects[1][1], rects[0][1]), max(rects[3][1], rects[2][1])],
+            [abs(rects[1][1] - rects[0][1]), abs(rects[3][1] - rects[2][1])]
+        )
+
     def _create_blob(self, area_min=100): #TODO: in class parameters ?
         """Create blobs from foreground mask using contour retrieval."""
         # create blobs using contour retrieval
@@ -338,6 +351,7 @@ class GOFPID():
             if cv.contourArea(contour) >= area_min
         ]
 
+    #TODO: WIP, because naive tracking
     def _track_blob(self, dist_max=100, absence_max=3): #TODO: in class parameters ?
         """Track blobs using only distance to centers."""
         n_blobs = len(self.blobs_)
@@ -389,26 +403,33 @@ class GOFPID():
                         if self.tracked_blobs_[i]['absence'] >= absence_max:
                             self.tracked_blobs_.pop(i)
 
-    def _post_filter(self):
-        """Post-filter non-intrusions with perimeter and perspective."""
-        # perimeter
+    def _post_filter(self, perspective_coeff=0.75):
+        """Post-filter pre-alarms with perimeter and perspective."""
         anchors = self._get_anchors(
             [blob['contour'] for blob in self.tracked_blobs_],
             dtype=np.int16
         )
 
-        for i, anchor in enumerate(anchors): # TODO : à tester!
+        for i in range(len(self.tracked_blobs_)):
+            # perimeter
             if cv.pointPolygonTest(
                 self.post_filter['perimeter'],
-                anchor,
+                anchors[i],
                 False,
             ) < 0:  # object not in perimeter
                 self.tracked_blobs_[i]['filter'].add('perimeter')
             else:  # object in perimeter
                 self.tracked_blobs_[i]['filter'].discard('perimeter')
 
-        # perspective
-        # TODO: coeff perspective=0.75
+            # perspective
+            _, _, _, height = cv.boundingRect(
+                self.tracked_blobs_[i]['contour']
+            )
+            height_min = self._perspective.predict(anchors[i][1])
+            if height <= height_min * self.post_filter['perspective_coeff']:  # object too small
+                self.tracked_blobs_[i]['filter'].add('perspective')
+            else:  # object acceptable
+                self.tracked_blobs_[i]['filter'].discard('perspective')
 
     def _detect_blob(self):
         """Detect intrusion blob by blob."""
@@ -440,6 +461,8 @@ class GOFPID():
                 color = (0, 0, 255)
             elif 'perimeter' in blob['filter']:
                 color = (255, 0, 0)
+            elif 'perspective' in blob['filter']:
+                color = (25, 200, 200)
             elif 'presence' in blob['filter']:
                 color = (0, 255, 0)
             else:

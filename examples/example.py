@@ -28,6 +28,7 @@ gofpid = GOFPID(
         'perimeter': None,
         'anchor': 'bottom',
         'perspective': None,
+        'perspective_coeff': 0.5,
         'presence_max': 3,
         'video_filename': video_filename,
     },

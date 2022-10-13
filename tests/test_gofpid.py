@@ -16,6 +16,7 @@ post_filter = {
     'perimeter': perimeter,
     'anchor': 'center',
     'perspective': perspective,
+    'perspective_coeff': 0.5,
     'presence_max': 3,
 }
 
@@ -151,6 +152,7 @@ def test_gofpid_postfilter(anchor):
             'perimeter': perimeter,
             'anchor': anchor,
             'perspective': perspective,
+            'perspective_coeff': 0.5,
             'presence_max': 3,
         },
     ).init()
@@ -165,40 +167,53 @@ def test_gofpid_postfilter(anchor):
         {
             'anchor': 'center',
             'perspective': perspective,
+            'perspective_coeff': 0.5,
             'presence_max': 3,
         },
         {
             'perimeter': np.array([[1, 5], [3, 9]]),
             'anchor': 'center',
             'perspective': perspective,
+            'perspective_coeff': 0.5,
             'presence_max': 3,
         },
         {
             'perimeter': perimeter,
             'perspective': perspective,
+            'perspective_coeff': 0.5,
             'presence_max': 3,
         },
         {
             'perimeter': perimeter,
             'anchor': 'blabla',
             'perspective': perspective,
+            'perspective_coeff': 0.5,
             'presence_max': 3,
         },
         {
             'perimeter': perimeter,
             'anchor': 'center',
+            'perspective_coeff': 0.5,
             'presence_max': 3,
         },
         {
             'perimeter': perimeter,
             'anchor': 'center',
             'perspective': np.array([[1, 5, 2], [3, 9, 4]]),
+            'perspective_coeff': 0.5,
             'presence_max': 3,
         },
         {
             'perimeter': perimeter,
             'anchor': 'center',
             'perspective': perspective,
+            'presence_max': 3,
+        },
+        {
+            'perimeter': perimeter,
+            'anchor': 'center',
+            'perspective': perspective,
+            'perspective_coeff': 0.5,
         },
     ]
 )
