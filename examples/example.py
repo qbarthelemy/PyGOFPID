@@ -10,7 +10,7 @@ https://pythonprogramming.net/static/images/opencv/people-walking.mp4;
 """
 
 import cv2 as cv
-from pygofpid.gofpid import GOFPID
+from pygofpid.methods import GOFPID
 
 
 ###############################################################################

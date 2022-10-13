@@ -3,7 +3,7 @@
 import pytest
 import numpy as np
 import cv2 as cv
-from pygofpid.gofpid import GOFPID
+from pygofpid.methods import GOFPID
 
 np.random.seed(17)
 
