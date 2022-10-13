@@ -6,11 +6,10 @@ import cv2 as cv
 
 from .helpers import (
     get_first_frame,
-    display_window,
     plot_rectangles,
     get_centers,
     get_bottoms,
-    is_in_rectangles,
+    is_in_corners,
     normalize_coords,
     unnormalize_coords,
     SimpleLinearRegression,
@@ -20,7 +19,7 @@ from .helpers import (
 class GOFPID():
     """GOFPID: good old fashioned perimeter intrusion detection system.
 
-    Using OpenCV, this class allows to build a pipeline using good old
+    Leveraging OpenCV, this class allows to build a pipeline using good old
     fashioned (GOF) computer vision methods for perimeter intrusion detection
     (PID):
 
@@ -201,9 +200,11 @@ class GOFPID():
         if self.post_filter['perspective'].shape != (4, 2):
              raise ValueError('Parameter perspective has not the good shape.')
         if 'perspective_coeff' not in self.post_filter.keys():
-            raise ValueError('Parameter post_filter has no key "perspective_coeff".')
+            raise ValueError(
+                'Parameter post_filter has no key "perspective_coeff".')
         if 'presence_max' not in self.post_filter.keys():
-            raise ValueError('Parameter post_filter has no key "presence_max".')
+            raise ValueError(
+                'Parameter post_filter has no key "presence_max".')
         self._calib_perspective()
 
         self.tracked_blobs_ = None
@@ -225,7 +226,15 @@ class GOFPID():
 
         cv.namedWindow(window_name)
         cv.setMouseCallback(window_name, add_line)
-        display_window(window_name, img, clone)
+        while True:
+            cv.imshow(window_name, img)
+            key = cv.waitKey(1) & 0xFF
+            if key == ord("r"):  # 'r' key => reset window
+                img = clone.copy()
+                perimeter = []
+            elif key == ord("c"):  # 'c' key => close
+                cv.destroyWindow(window_name)
+                break
 
         perimeter = normalize_coords(perimeter, img.shape)
         if self.verbose:
@@ -236,26 +245,30 @@ class GOFPID():
         """Display window to configure perspective."""
         img, clone = self._get_config_img()
 
-        rects = np.array([[0.1, 0.5], [0.3, 0.9], [0.8, 0.1], [0.9, 0.25]])
-        rects = unnormalize_coords(rects, img.shape, dtype=np.int32)
+        corners = np.array([[0.1, 0.4], [0.2, 0.8], [0.8, 0.2], [0.85, 0.3]])
+        corners = unnormalize_coords(corners, img.shape, dtype=np.int32)
         thickness = np.array([[0.02, 0.02]])
         thickness = unnormalize_coords(thickness, img.shape, dtype=np.int32)[0]
 
-        def update_rectangle(event, x, y, flags, params):
-            global i_rect
+        def move_corner(event, x, y, flags, params):
+            global i_corner
             if event == cv.EVENT_LBUTTONDOWN:
-                i_rect = is_in_rectangles((x, y), rects, thickness)
-            elif event == cv.EVENT_LBUTTONUP and i_rect >= 0:
-                rects[i_rect] = [x, y]
-                #img = clone.copy()  #FIXME
-                plot_rectangles(img, rects, thickness)
+                i_corner = is_in_corners((x, y), corners, thickness)
+            elif event == cv.EVENT_LBUTTONUP and i_corner >= 0:
+                corners[i_corner] = [x, y]
 
         cv.namedWindow(window_name)
-        cv.setMouseCallback(window_name, update_rectangle)
-        plot_rectangles(img, rects, thickness)
-        display_window(window_name, img, clone)
+        cv.setMouseCallback(window_name, move_corner)
+        while True:
+            img = clone.copy()
+            plot_rectangles(img, corners, thickness)
+            cv.imshow(window_name, img)
+            key = cv.waitKey(1) & 0xFF
+            if key == ord("c"):  # 'c' key => close
+                cv.destroyWindow(window_name)
+                break
 
-        perspective = normalize_coords(rects, img.shape)
+        perspective = normalize_coords(corners, img.shape)
         if self.verbose:
             print("Config perspective:\n", perspective)
         return perspective
@@ -269,7 +282,7 @@ class GOFPID():
         return img, clone
 
     def detect(self, X):
-        """Predict if there is an intrusion in current frame.
+        """Detect if there is an intrusion in the current frame.
 
         Parameters
         ----------
@@ -336,7 +349,7 @@ class GOFPID():
             [abs(rects[1][1] - rects[0][1]), abs(rects[3][1] - rects[2][1])]
         )
 
-    def _create_blob(self, area_min=100): #TODO: in class parameters ?
+    def _create_blob(self, area_min=100): #TODO: in parameters ?
         """Create blobs from foreground mask using contour retrieval."""
         # create blobs using contour retrieval
         _, contours, _ = cv.findContours(
@@ -352,7 +365,7 @@ class GOFPID():
         ]
 
     #TODO: WIP, because naive tracking
-    def _track_blob(self, dist_max=100, absence_max=3): #TODO: in class parameters ?
+    def _track_blob(self, dist_max=100, absence_max=3): #TODO: in parameters ?
         """Track blobs using only distance to centers."""
         n_blobs = len(self.blobs_)
         if self.tracked_blobs_ is None:
@@ -438,7 +451,7 @@ class GOFPID():
 
         y = 0
         for i, blob in enumerate(self.tracked_blobs_):
-            if blob['filter'] == set():
+            if blob['filter'] == set():  # no filter => intrusion detected
                 y = 1
 
         if self.verbose and y == 1:

@@ -14,25 +14,13 @@ def get_first_frame(video_filename):
     return frame
 
 
-def display_window(window_name, img, clone):
-    """Dispay window."""
-    while True:
-        cv.imshow(window_name, img)
-        key = cv.waitKey(1) & 0xFF
-        if key == ord("r"):  # 'r' key => reset window
-            img = clone.copy()
-        elif key == ord("c"):  # 'c' key => close
-            cv.destroyWindow(window_name)
-            break
-
-
-def plot_rectangles(X, rects, thickness):
-    cv.rectangle(X, rects[0], rects[1], (0, 0, 255), 2)
-    cv.rectangle(X, rects[0] - thickness, rects[0] + thickness, (0, 0, 255), -1)
-    cv.rectangle(X, rects[1] - thickness, rects[1] + thickness, (0, 0, 255), -1)
-    cv.rectangle(X, rects[2], rects[3], (0, 0, 255), 2)
-    cv.rectangle(X, rects[2] - thickness, rects[2] + thickness, (0, 0, 255), -1)
-    cv.rectangle(X, rects[3] - thickness, rects[3] + thickness, (0, 0, 255), -1)
+def plot_rectangles(X, corners, thickness, c=(0, 0, 255)):
+    cv.rectangle(X, corners[0], corners[1], c, 2)
+    cv.rectangle(X, corners[0] - thickness, corners[0] + thickness, c, -1)
+    cv.rectangle(X, corners[1] - thickness, corners[1] + thickness, c, -1)
+    cv.rectangle(X, corners[2], corners[3], c, 2)
+    cv.rectangle(X, corners[2] - thickness, corners[2] + thickness, c, -1)
+    cv.rectangle(X, corners[3] - thickness, corners[3] + thickness, c, -1)
 
 
 def get_centers(contours, dtype=np.int16):
@@ -56,14 +44,15 @@ def get_bottoms(contours, dtype=np.int16):
         bottoms.append([x, y])
     return np.array(bottoms, dtype=dtype)
 
-def is_in_rectangles(coord, centers, thickness):
-    for i, center in enumerate(centers):
+
+def is_in_corners(coord, corners, thickness):
+    for i, corner in enumerate(corners):
         if cv.pointPolygonTest(
             np.array([
-                [center[0] - thickness[0], center[1] - thickness[1]],
-                [center[0] - thickness[0], center[1] + thickness[1]],
-                [center[0] + thickness[0], center[1] + thickness[1]],
-                [center[0] + thickness[0], center[1] - thickness[1]],
+                [corner[0] - thickness[0], corner[1] - thickness[1]],
+                [corner[0] - thickness[0], corner[1] + thickness[1]],
+                [corner[0] + thickness[0], corner[1] + thickness[1]],
+                [corner[0] + thickness[0], corner[1] - thickness[1]],
             ]),
             coord,
             False,
@@ -91,6 +80,7 @@ def unnormalize_coords(ncoords, shape, dtype=np.uint8):
 
 class SimpleLinearRegression():
     """Simple linear regression."""
+
     def __init__(self):
         self.coeff = None
         self.intercept = None
@@ -128,4 +118,4 @@ class SimpleLinearRegression():
         y : ndarray, shape (n,)
             Predicted values.
         """
-        return self.coeff * x + self.intercept
+        return self.coeff * np.asarray(x) + self.intercept
