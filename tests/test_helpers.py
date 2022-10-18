@@ -5,9 +5,13 @@ from pytest import approx
 import numpy as np
 
 from pygofpid.helpers import (
+    plot_lines,
+    plot_rectangles,
+    plot_squares,
+    is_in_squares,
+    is_between_points,
     get_centers,
     get_bottoms,
-    is_in_corners,
     normalize_coords,
     unnormalize_coords,
     SimpleLinearRegression,
@@ -15,6 +19,37 @@ from pygofpid.helpers import (
 
 
 np.random.seed(17)
+
+
+@pytest.mark.parametrize("fun", [plot_lines, plot_rectangles, plot_squares])
+def test_plots(fun):
+    """Test plots."""
+    X = np.ones((240, 320, 3), dtype=np.uint8)
+    points = np.array([[10, 40], [20, 80], [80, 20], [85, 30]])
+    thickness = np.array([5, 5])
+    fun(X, points, thickness)
+
+
+@pytest.mark.parametrize(
+    "coord, gt",
+    [([11, 51], 0), ([13, 53], -1), ([87, 33], 3), ([128, 64], -1)],
+)
+def test_is_in_squares(coord, gt):
+    """Test is_in_squares."""
+    points = [[10, 50], [20, 90], [80, 20], [85, 35]]
+    thickness = [2, 2]
+    assert is_in_squares(coord, points, thickness) == gt
+
+
+@pytest.mark.parametrize(
+    "coord, gt",
+    [([10, 30], 0), ([11, 30], 0), ([13, 30], -1), ([50, 30], 2)],
+)
+def test_is_between_points(coord, gt):
+    """Test is_between_points."""
+    points = [[10, 10], [10, 50], [50, 50], [50, 10]]
+    thickness = [2, 2]
+    assert is_between_points(coord, points, thickness) == gt
 
 
 def test_get_centers():
@@ -31,17 +66,6 @@ def test_get_bottoms():
     bottom = get_bottoms(contours)[0]
     assert bottom[0] == 5   # middle
     assert bottom[1] == 10  # bottom
-
-
-@pytest.mark.parametrize(
-    "coord, gt",
-    [([11, 51], 0), ([87, 33], 3), ([128, 64], -1)],
-)
-def test_is_in_corners(coord, gt):
-    """Test is_in_corners."""
-    corners = [[10, 50], [20, 90], [80, 20], [85, 35]]
-    thickness = [2, 2]
-    assert is_in_corners(coord, corners, thickness) == gt
 
 
 @pytest.mark.parametrize(

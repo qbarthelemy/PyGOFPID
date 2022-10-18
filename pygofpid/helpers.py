@@ -4,23 +4,83 @@ import numpy as np
 import cv2 as cv
 
 
-def get_first_frame(video_filename):
-    """Get first frame of video."""
+def change_extension(filename_input, ext_new='png'):
+    ext_old = filename_input.split('.')[-1]
+    filename_output = filename_input.replace(ext_old, ext_new)
+    return filename_output
+
+
+def read_first_frame(video_filename):
+    """Read first frame of a video."""
     vidcap = cv.VideoCapture(video_filename)
-    if not vidcap.isOpened():
-        raise ValueError('Unable to open input filemane.')
+    if vidcap.isOpened():
+        raise ValueError('Unable to open video %s.' % video_filename)
     _, frame = vidcap.read()
     vidcap.release()
+    frame_filename = change_extension(video_filename)
+    cv.imwrite(frame_filename, frame)
     return frame
 
 
-def plot_rectangles(X, corners, thickness, c=(0, 0, 255)):
-    cv.rectangle(X, corners[0], corners[1], c, 2)
-    cv.rectangle(X, corners[0] - thickness, corners[0] + thickness, c, -1)
-    cv.rectangle(X, corners[1] - thickness, corners[1] + thickness, c, -1)
-    cv.rectangle(X, corners[2], corners[3], c, 2)
-    cv.rectangle(X, corners[2] - thickness, corners[2] + thickness, c, -1)
-    cv.rectangle(X, corners[3] - thickness, corners[3] + thickness, c, -1)
+def plot_lines(X, points, thickness, c=(0, 0, 255)):
+    n_points = len(points)
+    if n_points >= 2:
+        for i in range(n_points):
+            cv.line(X, points[i % n_points], points[(i+1) % n_points], c, 2)
+    plot_squares(X, points, thickness, c=c)
+
+
+def plot_rectangles(X, points, thickness, c=(0, 0, 255)):
+    cv.rectangle(X, points[0], points[1], c, 2)
+    cv.rectangle(X, points[2], points[3], c, 2)
+    plot_squares(X, points, thickness, c=c)
+
+
+def plot_squares(X, points, thickness, c=(0, 0, 255)):
+    for point in (points):
+        cv.rectangle(X, point - thickness, point + thickness, c, -1)
+
+
+def is_in_squares(coord, points, thickness):
+    for i, point in enumerate(points):
+        if cv.pointPolygonTest(
+            np.array([
+                [point[0] - thickness[0], point[1] - thickness[1]],
+                [point[0] - thickness[0], point[1] + thickness[1]],
+                [point[0] + thickness[0], point[1] + thickness[1]],
+                [point[0] + thickness[0], point[1] - thickness[1]],
+            ]),
+            coord,
+            False,
+        ) >= 0:
+            return i
+    else:
+        return -1
+
+
+def is_between_points(coord, points, thickness): #TODO: visual check
+    n_points = len(points)
+    if n_points < 2:
+        return -1
+    points = np.asarray(points)
+    for i in range(n_points):
+        middle = (points[i % n_points] + points[(i+1) % n_points]) // 2
+        direction = np.sign(points[(i+1) % n_points] - points[i % n_points])
+        if cv.pointPolygonTest(
+            np.array([
+                [points[i % n_points][0], points[i % n_points][1]],
+                [middle[0] + direction[0] * thickness[0],
+                 middle[1] - direction[1] * thickness[1]],
+                [points[(i+1) % n_points][0], points[(i+1) % n_points][1]],
+                [middle[0] - direction[0] * thickness[0],
+                 middle[1] + direction[1] * thickness[1]],
+            ]),
+            coord,
+            False,
+        ) >= 0:
+            return i
+    else:
+        return -1
 
 
 def get_centers(contours, dtype=np.int16):
@@ -45,32 +105,15 @@ def get_bottoms(contours, dtype=np.int16):
     return np.array(bottoms, dtype=dtype)
 
 
-def is_in_corners(coord, corners, thickness):
-    for i, corner in enumerate(corners):
-        if cv.pointPolygonTest(
-            np.array([
-                [corner[0] - thickness[0], corner[1] - thickness[1]],
-                [corner[0] - thickness[0], corner[1] + thickness[1]],
-                [corner[0] + thickness[0], corner[1] + thickness[1]],
-                [corner[0] + thickness[0], corner[1] - thickness[1]],
-            ]),
-            coord,
-            False,
-        ) >= 0:
-            return i
-    else:
-        return -1
-
-
-def normalize_coords(coords, shape):
+def normalize_coords(coords, shape, dtype=np.float64):
     """Transform image coords (x,y) into normalized coords in [0,1]."""
-    ncoords = np.asarray(coords, dtype=np.float64)
+    ncoords = np.asarray(coords, dtype=dtype)
     ncoords[..., 0] /= shape[1]
     ncoords[..., 1] /= shape[0]
     return ncoords
 
 
-def unnormalize_coords(ncoords, shape, dtype=np.uint8):
+def unnormalize_coords(ncoords, shape, dtype=np.uint16):
     """Transform normalized coords (x,y) in [0,1] into image coords."""
     coords = np.asarray(ncoords, dtype=np.float64)
     coords[..., 0] *= shape[1]
