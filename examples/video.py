@@ -21,7 +21,6 @@ vidcap = cv.VideoCapture(video_filename)
 if not vidcap.isOpened():
     print('Unable to open video file :', video_filename)
     exit(0)
-vidcap.release()
 
 
 # Pipeline GOFPID
@@ -31,12 +30,13 @@ gofpid = GOFPID(
         'perimeter': None,
         'anchor': 'bottom',
         'perspective': None,
-        'perspective_coeff': 0.5,
-        'presence_max': 3,
+        'perspective_coeff': 0.0,
+        'presence_min': 3,
+        'distance_min': 10,
         'config_video_filename': video_filename,
     },
     verbose=True
-).init()
+).initialize()
 
 
 # Intrusion detection

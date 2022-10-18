@@ -13,7 +13,7 @@ def change_extension(filename_input, ext_new='png'):
 def read_first_frame(video_filename):
     """Read first frame of a video."""
     vidcap = cv.VideoCapture(video_filename)
-    if vidcap.isOpened():
+    if not vidcap.isOpened():
         raise ValueError('Unable to open video %s.' % video_filename)
     _, frame = vidcap.read()
     vidcap.release()
@@ -41,7 +41,8 @@ def plot_squares(X, points, thickness, c=(0, 0, 255)):
         cv.rectangle(X, point - thickness, point + thickness, c, -1)
 
 
-def is_in_squares(coord, points, thickness):
+def find_point(coord, points, thickness):
+    """Find the point selected by coordinates."""
     for i, point in enumerate(points):
         if cv.pointPolygonTest(
             np.array([
@@ -58,23 +59,28 @@ def is_in_squares(coord, points, thickness):
         return -1
 
 
-def is_between_points(coord, points, thickness):
+def find_line(coord, points, thickness):
+    """Find the line selected by coordinates."""
     n_points = len(points)
     if n_points < 2:
         return -1
     points = np.asarray(points)
     for i in range(n_points):
-        middle = (points[i % n_points] + points[(i+1) % n_points]) // 2
-        direction = np.sign(points[(i+1) % n_points] - points[i % n_points])
+        middle = (points[i % n_points] + points[(i+1) % n_points]) / 2
+        normal_vector = points[(i+1) % n_points] - points[i % n_points]
+        normal_vector = normal_vector / cv.norm(normal_vector)
         if cv.pointPolygonTest(
-            np.array([
-                [points[i % n_points][0], points[i % n_points][1]],
-                [middle[0] - direction[1] * thickness[0],
-                 middle[1] + direction[0] * thickness[1]],
-                [points[(i+1) % n_points][0], points[(i+1) % n_points][1]],
-                [middle[0] + direction[1] * thickness[0],
-                 middle[1] - direction[0] * thickness[1]],
-            ]),
+            np.array(
+                [
+                    [points[i % n_points][0], points[i % n_points][1]],
+                    [middle[0] - normal_vector[1] * thickness[0],
+                     middle[1] + normal_vector[0] * thickness[1]],
+                    [points[(i+1) % n_points][0], points[(i+1) % n_points][1]],
+                    [middle[0] + normal_vector[1] * thickness[0],
+                     middle[1] - normal_vector[0] * thickness[1]],
+                ],
+                dtype=np.int32,
+            ),
             coord,
             False,
         ) >= 0:

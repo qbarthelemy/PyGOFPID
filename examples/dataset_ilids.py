@@ -62,7 +62,8 @@ gofpid = GOFPID(
         'anchor': 'bottom',
         'perspective': perspective,
         'perspective_coeff': 0.5,
-        'presence_max': 3,
+        'presence_min': 3,
+        'distance_min': 0.1,
         'config_frame': frame,
     },
     verbose=True
