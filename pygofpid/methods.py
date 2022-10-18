@@ -5,11 +5,13 @@ from scipy.spatial.distance import cdist
 import cv2 as cv
 
 from .helpers import (
-    get_first_frame,
+    read_first_frame,
+    plot_lines,
     plot_rectangles,
     get_centers,
     get_bottoms,
-    is_in_corners,
+    is_in_squares,
+    is_between_points,
     normalize_coords,
     unnormalize_coords,
     SimpleLinearRegression,
@@ -63,22 +65,33 @@ class GOFPID():
             'perspective': None, 'perspective_coeff': 0.5, 'presence_max': 3}
         Dictionary containing parameters to filter pre-alarms:
 
-        - perimeter: list of points. If None, a window allows to draw it.
+        - perimeter: None, or list of points in normalized coordinates.
+          If None, perimeter is the whole frame.
         - anchor: point of object, 'center' or 'bottom', to determine if it is
           in the perimeter.
-        - perspective: list of four points, defining the minimum sizes of
-          objects to detect. Two boxes represent a person in the image (one box
-          in the foreground and a second in the background).
-          If None, a window allows to draw these rectangles according to the
-          size of a person placed in these places in the image.
+        - perspective: list of four points in normalized coordinates, defining
+          the minimum sizes of objects to detect. Two boxes represent a person
+          in the image (one box in the foreground and a second in the
+          background).
+          If None, perspective is.
         - perspective_coeff: multiplicative coefficient of tolerance on size of
           perspective.
         - presence_max: number of frames where objet is present and tracked
           before raising intrusion alarm.
-        - video_filename: filename of video to display its first frame to
+
+        - display_config, optional: choose if display configuration.
+        - config_video_filename, optional: filename of video to display its
+          first frame to configure perimeter and perspective.
+        - config_frame_filename, optional: filename of frame to display to
           configure perimeter and perspective.
+        - config_frame, optional: frame to display to configure perimeter and
+          perspective.
 
         On configuration windows, press 'r' key to reset, 'c' to close.
+        For perimeter, right-click on a line to add a new point, and on an
+        existing point to remove it.
+        For perspective, a window allows to draw these rectangles according to
+        the size of a person placed in these places in the image.
 
     Attributes
     ----------
@@ -177,14 +190,6 @@ class GOFPID():
                         (5, 5),
                     )
 
-        if 'perimeter' not in self.post_filter.keys():
-            raise ValueError('Parameter post_filter has no key "perimeter".')
-        if not isinstance(self.post_filter['perimeter'], np.ndarray):
-            self.post_filter['perimeter'] = self._config_perimeter()
-        if self.post_filter['perimeter'].shape[0] < 3:
-            raise ValueError('Parameter perimeter has not the good shape.')
-        if self.post_filter['perimeter'].shape[1] != 2:
-            raise ValueError('Parameter perimeter has not the good shape.')
         if 'anchor' not in self.post_filter.keys():
             raise ValueError('Parameter post_filter has no key "anchor".')
         if self.post_filter.get('anchor') == 'center':
@@ -193,18 +198,14 @@ class GOFPID():
             self._get_anchors = get_bottoms
         else:
             raise ValueError('Parameter anchor must be "center" or "bottom".')
-        if 'perspective' not in self.post_filter.keys():
-            raise ValueError('Parameter post_filter has no key "perspective".')
-        if not isinstance(self.post_filter['perspective'], np.ndarray):
-            self.post_filter['perspective'] = self._config_perspective()
-        if self.post_filter['perspective'].shape != (4, 2):
-             raise ValueError('Parameter perspective has not the good shape.')
         if 'perspective_coeff' not in self.post_filter.keys():
             raise ValueError(
                 'Parameter post_filter has no key "perspective_coeff".')
         if 'presence_max' not in self.post_filter.keys():
             raise ValueError(
                 'Parameter post_filter has no key "presence_max".')
+        self._check_perimeter()
+        self._check_perspective()
         self._calib_perspective()
 
         self.tracked_blobs_ = None
@@ -212,74 +213,147 @@ class GOFPID():
 
         return self
 
+    def _check_perimeter(self):
+        """Check parameter perimeter."""
+        if 'perimeter' not in self.post_filter.keys():
+            raise ValueError('Parameter post_filter has no key "perimeter".')
+
+        if self.post_filter['perimeter'] is None:
+            self.post_filter['perimeter'] = np.array(
+                [[0, 0], [0, 1], [1, 1], [1, 0]]
+            )
+        elif isinstance(self.post_filter['perimeter'], np.ndarray):
+            if self.post_filter['perimeter'].ndim != 2:
+                raise ValueError('Parameter perimeter has not the good shape.')
+            if self.post_filter['perimeter'].shape[0] < 3:
+                raise ValueError('Parameter perimeter has not enough points.')
+            if self.post_filter['perimeter'].shape[1] != 2:
+                raise ValueError('Parameter perimeter has not the good shape.')
+        else:
+            raise ValueError('Unknown type for parameter "perimeter".')
+
+        if self.post_filter.get('display_config'):
+            self.post_filter['perimeter'] = self._config_perimeter()
+
     def _config_perimeter(self, window_name="Configure perimeter"):
         """Display window to configure perimeter."""
-        img, clone = self._get_config_img()
+        img, clone, thickness = self._get_config_img()
 
-        perimeter = []
+        points = unnormalize_coords(
+            self.post_filter['perimeter'],
+            img.shape
+        ).tolist()
 
-        def add_line(event, x, y, flags, params):
-            if event in [cv.EVENT_LBUTTONDOWN, cv.EVENT_LBUTTONUP]:
-                perimeter.append([x, y])
-                if len(perimeter) >= 2:
-                    cv.line(img, perimeter[-2], perimeter[-1], (0, 0, 255), 2)
+        def move_line(event, x, y, flags, params):
+            global i_point, i_line
+            if event == cv.EVENT_LBUTTONDOWN:
+                i_point = is_in_squares((x, y), points, thickness)
+            elif event == cv.EVENT_LBUTTONUP and i_point >= 0:
+                points[i_point] = [x, y]
+            elif event == cv.EVENT_RBUTTONDOWN:
+                i_point = is_in_squares((x, y), points, thickness)
+                i_line = is_between_points((x, y), points, thickness)
+            elif event == cv.EVENT_RBUTTONUP:
+                if i_point >= 0:
+                    points.pop(i_point)
+                elif i_line >= 0:
+                    points.insert(i_line + 1, [x, y])
 
         cv.namedWindow(window_name)
-        cv.setMouseCallback(window_name, add_line)
+        cv.setMouseCallback(window_name, move_line)
         while True:
+            img = clone.copy()
+            plot_lines(img, points, thickness)
             cv.imshow(window_name, img)
             key = cv.waitKey(1) & 0xFF
             if key == ord("r"):  # 'r' key => reset window
                 img = clone.copy()
-                perimeter = []
+                points = unnormalize_coords(
+                    np.array([[0, 0], [0, 1], [1, 1], [1, 0]]),
+                    img.shape,
+                ).tolist()
             elif key == ord("c"):  # 'c' key => close
                 cv.destroyWindow(window_name)
                 break
 
-        perimeter = normalize_coords(perimeter, img.shape)
+        perimeter = normalize_coords(points, img.shape)
         if self.verbose:
             print("Config perimeter:\n", perimeter)
         return perimeter
 
+    def _check_perspective(self):
+        """Check parameter perspective."""
+        if 'perspective' not in self.post_filter.keys():
+            raise ValueError('Parameter post_filter has no key "perspective".')
+
+        if self.post_filter['perspective'] is None:
+            self.post_filter['perspective'] = np.array(
+                [[0.1, 0.4], [0.2, 0.8], [0.8, 0.2], [0.85, 0.3]]
+            )
+        elif isinstance(self.post_filter['perspective'], np.ndarray):
+            if self.post_filter['perspective'].shape != (4, 2):
+                 raise ValueError('Parameter perspective has not the good shape.')
+        else:
+            raise ValueError('Unknown type for parameter "perspective".')
+
+        if self.post_filter.get('display_config'):
+            self.post_filter['perspective'] = self._config_perspective()
+
     def _config_perspective(self, window_name="Configure perspective"):
         """Display window to configure perspective."""
-        img, clone = self._get_config_img()
+        img, clone, thickness = self._get_config_img()
 
-        corners = np.array([[0.1, 0.4], [0.2, 0.8], [0.8, 0.2], [0.85, 0.3]])
-        corners = unnormalize_coords(corners, img.shape, dtype=np.int32)
-        thickness = np.array([[0.02, 0.02]])
-        thickness = unnormalize_coords(thickness, img.shape, dtype=np.int32)[0]
+        points = unnormalize_coords(
+            self.post_filter['perspective'],
+            img.shape,
+            dtype=np.int32
+        )
 
-        def move_corner(event, x, y, flags, params):
-            global i_corner
+        def move_rectangle(event, x, y, flags, params):
+            global i_point
             if event == cv.EVENT_LBUTTONDOWN:
-                i_corner = is_in_corners((x, y), corners, thickness)
-            elif event == cv.EVENT_LBUTTONUP and i_corner >= 0:
-                corners[i_corner] = [x, y]
+                i_point = is_in_squares((x, y), points, thickness)
+            elif event == cv.EVENT_LBUTTONUP and i_point >= 0:
+                points[i_point] = [x, y]
 
         cv.namedWindow(window_name)
-        cv.setMouseCallback(window_name, move_corner)
+        cv.setMouseCallback(window_name, move_rectangle)
         while True:
             img = clone.copy()
-            plot_rectangles(img, corners, thickness)
+            plot_rectangles(img, points, thickness)
             cv.imshow(window_name, img)
             key = cv.waitKey(1) & 0xFF
             if key == ord("c"):  # 'c' key => close
                 cv.destroyWindow(window_name)
                 break
 
-        perspective = normalize_coords(corners, img.shape)
+        perspective = normalize_coords(points, img.shape)
         if self.verbose:
             print("Config perspective:\n", perspective)
         return perspective
 
     def _get_config_img(self):
-        if 'video_filename' in self.post_filter.keys():
-            img = get_first_frame(self.post_filter['video_filename'])
+        if 'config_video_filename' in self.post_filter.keys():
+            img = read_first_frame(self.post_filter['config_video_filename'])
+        elif 'config_frame_filename' in self.post_filter.keys():
+            img = cv.imread(self.post_filter['config_frame_filename'])
+        elif 'config_frame' in self.post_filter.keys():
+            img = self.post_filter['config_frame']
         else:
             img = 100 * np.ones((240, 320, 3), dtype=np.uint8)
+
+        if img is None:
+            raise ValueError('Configuration image is None.')
+
         clone = img.copy()
-        return img, clone
+
+        thickness = unnormalize_coords(
+            np.array([[0.02, 0.02]]),
+            img.shape,
+            dtype=np.int32
+        )[0]
+
+        return img, clone, thickness
 
     def detect(self, X):
         """Detect if there is an intrusion in the current frame.
