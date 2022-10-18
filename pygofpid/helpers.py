@@ -58,7 +58,7 @@ def is_in_squares(coord, points, thickness):
         return -1
 
 
-def is_between_points(coord, points, thickness): #TODO: visual check
+def is_between_points(coord, points, thickness):
     n_points = len(points)
     if n_points < 2:
         return -1
@@ -69,11 +69,11 @@ def is_between_points(coord, points, thickness): #TODO: visual check
         if cv.pointPolygonTest(
             np.array([
                 [points[i % n_points][0], points[i % n_points][1]],
-                [middle[0] + direction[0] * thickness[0],
-                 middle[1] - direction[1] * thickness[1]],
+                [middle[0] - direction[1] * thickness[0],
+                 middle[1] + direction[0] * thickness[1]],
                 [points[(i+1) % n_points][0], points[(i+1) % n_points][1]],
-                [middle[0] - direction[0] * thickness[0],
-                 middle[1] + direction[1] * thickness[1]],
+                [middle[0] + direction[1] * thickness[0],
+                 middle[1] - direction[0] * thickness[1]],
             ]),
             coord,
             False,
