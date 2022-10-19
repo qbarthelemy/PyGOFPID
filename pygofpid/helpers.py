@@ -89,26 +89,20 @@ def find_line(coord, points, thickness):
         return -1
 
 
-def get_centers(contours, dtype=np.int16):
-    """Compute centers of contours."""
-    centers = []
-    for contour in contours:
-        moments = cv.moments(contour)
-        x = int(moments["m10"] / moments["m00"])
-        y = int(moments["m01"] / moments["m00"])
-        centers.append([x, y])
-    return np.array(centers, dtype=dtype)
+def get_center(contour, dtype=np.int16):
+    """Compute center of a contour."""
+    moments = cv.moments(contour)
+    x = int(moments["m10"] / moments["m00"])
+    y = int(moments["m01"] / moments["m00"])
+    return np.array([x, y], dtype=dtype)
 
 
-def get_bottoms(contours, dtype=np.int16):
-    """Compute middle-bottom points of contours."""
-    bottoms = []
-    for contour in contours:
-        moments = cv.moments(contour)
-        x = int(moments["m10"] / moments["m00"])
-        y = max(contour[..., 1])  # downward axis => bottom = max
-        bottoms.append([x, y])
-    return np.array(bottoms, dtype=dtype)
+def get_bottom(contour, dtype=np.int16):
+    """Compute middle-bottom point of a contour."""
+    moments = cv.moments(contour)
+    x = int(moments["m10"] / moments["m00"])
+    y = max(contour[..., 1])  # downward axis => bottom = max
+    return np.array([x, y], dtype=dtype)
 
 
 def normalize_coords(coords, shape, dtype=np.float64):
