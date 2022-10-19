@@ -10,8 +10,8 @@ from pygofpid.helpers import (
     plot_squares,
     find_point,
     find_line,
-    get_center,
     get_bottom,
+    get_center,
     normalize_coords,
     unnormalize_coords,
     SimpleLinearRegression,
@@ -52,20 +52,20 @@ def test_find_line(coord, gt):
     assert find_line(coord, points, thickness) == gt
 
 
-def test_get_centers():
-    """Test get_center."""
-    contour = np.array([[0, 0], [0, 10], [10, 10], [10, 0]], dtype=np.int32)
-    center = get_center(contour)
-    assert center[0] == 5
-    assert center[1] == 5
-
-
-def test_get_bottoms():
+def test_get_bottom():
     """Test get_bottom."""
     contour = np.array([[0, 0], [0, 10], [10, 10], [10, 0]], dtype=np.int32)
     bottom = get_bottom(contour)
     assert bottom[0] == 5   # middle
     assert bottom[1] == 10  # bottom
+
+
+def test_get_center():
+    """Test get_center."""
+    contour = np.array([[0, 0], [0, 10], [10, 10], [10, 0]], dtype=np.int32)
+    center = get_center(contour)
+    assert center[0] == 5
+    assert center[1] == 5
 
 
 @pytest.mark.parametrize(

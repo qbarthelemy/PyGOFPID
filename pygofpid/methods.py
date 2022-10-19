@@ -8,8 +8,8 @@ from .helpers import (
     read_first_frame,
     plot_lines,
     plot_rectangles,
-    get_center,
     get_bottom,
+    get_center,
     find_point,
     find_line,
     normalize_coords,
@@ -102,18 +102,24 @@ class GOFPID():
     foreground_mask_ : ndarray of int, shape (n_height, n_width, n_color)
         Foreground mask.
 
-    blobs_ : list of OpenCV contours
+    blobs_ : list of dict
         Instantaneous blobs created from foreground mask.
-
-    tracked_blobs_ : list of n_blobs dict
-        Tracked blobs are created from instantaneous blobs and contain many
-        attributes:
+        Each blob is a dictionary containing following keys:
 
         - contour: contour of blob;
+        - anchor: anchor point of blob;
+        - bottom: bottom point of blob;
+        - center: center point of blob.
+
+    tracked_blobs_ : list of dict
+        Tracked blobs are created from instantaneous blobs.
+        Each tracked blob is a dictionary containing following keys:
+
+        - same keys as an instantaneous blob;
+        - center_first: center point of tracked blob when created;
         - presence: presence count;
         - absence: absence count;
-        - filter: types of filtering;
-        - ...
+        - filter: types of filtering.
 
     References
     ----------
@@ -199,12 +205,8 @@ class GOFPID():
 
         if 'anchor' not in self.post_filter.keys():
             raise ValueError('Parameter post_filter has no key "anchor".')
-        if self.post_filter.get('anchor') == 'center':
-            self._get_anchor = get_center
-        elif self.post_filter.get('anchor') == 'bottom':
-            self._get_anchor = get_bottom
-        else:
-            raise ValueError('Parameter anchor must be "center" or "bottom".')
+        if self.post_filter['anchor'] not in ['bottom', 'center']:
+            raise ValueError('Parameter anchor must be "bottom" or "center".')
         if 'perspective_coeff' not in self.post_filter.keys():
             raise ValueError(
                 'Parameter post_filter has no key "perspective_coeff".')
@@ -409,7 +411,7 @@ class GOFPID():
         self.foreground_mask_ = mask
 
         # blob creation from foreground mask
-        self._create_blob()
+        self._find_blob()
 
         # blob tracking and some post-filtering
         self._track_blob()
@@ -451,20 +453,42 @@ class GOFPID():
         ]
         self._perspective = SimpleLinearRegression().fit(bottoms, areas)
 
-    def _create_blob(self, area_min=100):  #TODO: in parameters ?
-        """Create blobs from foreground mask using contour retrieval."""
-        # create blobs using contour retrieval
+    def _find_blob(self, area_min=100):  #TODO: in parameters ?
+        """Find blobs from foreground mask using contour retrieval."""
+        # find blobs using contour retrieval
         _, contours, _ = cv.findContours(
             self.foreground_mask_,
             mode=cv.RETR_EXTERNAL,
             method=cv.CHAIN_APPROX_NONE,
         )
 
-        # filter blobs with minimal area
-        self.blobs_ = [
+        # filter contours with minimal area
+        contours = [
             contour for contour in contours
             if cv.contourArea(contour) >= area_min
         ]
+
+        # create blobs
+        self.blobs_ = [
+            self._create_blob(contour) for contour in contours
+        ]
+
+    def _create_blob(self, contour):
+        """Create blob from its contour."""
+        bottom = get_bottom(contour, dtype=np.int16)
+        center = get_center(contour, dtype=np.int16)
+        if self.post_filter['anchor'] == 'bottom':
+            anchor = bottom
+        else:
+            anchor = center
+
+        blob = {
+            'contour': contour,
+            'anchor': anchor,
+            'bottom': bottom,
+            'center': center,
+        }
+        return blob
 
     #TODO: WIP, because very naive tracking
     def _track_blob(self, dist_max=100):  #TODO: in parameters ?
@@ -482,36 +506,39 @@ class GOFPID():
                 self._update_unpaired_tracked_blob(i)
             return
 
-        if n_tracked_blobs > 0:
-            # pairwise distances between blob centers
-            blobs_cent = [get_center(blob) for blob in self.blobs_]
-            tracked_blobs_cent = [
-                get_center(blob['contour']) for blob in self.tracked_blobs_
-            ]
-            dist = np.atleast_2d(
-                cdist(blobs_cent, tracked_blobs_cent, 'euclidean')
-            )
+        if n_tracked_blobs == 0:
+            return
 
-            for i in range(n_blobs):
-                j_min = np.argmin(dist[i])
-                #TODO: use features extracted on contours to pair blobs
-                if dist[i, j_min] < dist_max:  # pair found
-                    dist[i, j_min] = -1  # to mark that pair has been found
-                    self._update_paired_tracked_blob(j_min, i)
-                else:
-                    self.tracked_blobs_.append(self._create_tracked_blob(i))
+        # pairwise distances between blob centers
+        blobs_cent = [blob['center'] for blob in self.blobs_]
+        tracked_blobs_cent = [blob['center'] for blob in self.tracked_blobs_]
+        dist = np.atleast_2d(
+            cdist(blobs_cent, tracked_blobs_cent, 'euclidean')
+        )
 
-            for i in range(n_tracked_blobs - 1, 0, -1):
-                if np.all(dist[:, i] >= 0):  # no pair found
-                    self._update_unpaired_tracked_blob(i)
+        for i in range(n_blobs):
+            j_min = np.argmin(dist[i])
+            #TODO: use features extracted on contours to pair blobs
+            if dist[i, j_min] < dist_max:  # pair found
+                dist[i, j_min] = -1  # to mark that pair has been found
+                self._update_paired_tracked_blob(j_min, i)
+            else:
+                self.tracked_blobs_.append(self._create_tracked_blob(i))
+
+        for j in range(n_tracked_blobs - 1, 0, -1):
+            if np.all(dist[:, j] >= 0):  # no pair found
+                self._update_unpaired_tracked_blob(j)
 
     def _create_tracked_blob(self, i_blob):
         """Create a tracked blob."""
+        blob = self.blobs_[i_blob]
+
         tracked_blob = {
-            'contour': self.blobs_[i_blob].copy(),
-            'anchor': self._get_anchor(self.blobs_[i_blob], dtype=np.int16),
-            'bottom': get_bottom(self.blobs_[i_blob], dtype=np.int16),
-            'center_first': get_center(self.blobs_[i_blob]),
+            'contour': blob['contour'].copy(),
+            'anchor': blob['anchor'],
+            'bottom': blob['bottom'],
+            'center': blob['center'],
+            'center_first': blob['center'],
             'presence': 1,
             'absence': 0,
             'filter': set(['presence', 'distance']),
@@ -522,9 +549,11 @@ class GOFPID():
         """Update a tracked blob paired with an instantaneous blob."""
         tracked_blob = self.tracked_blobs_[i_tracked_blob]
         blob = self.blobs_[i_blob]
-        tracked_blob['contour'] = blob.copy()
-        tracked_blob['anchor'] = self._get_anchor(blob, dtype=np.int16)
-        tracked_blob['bottom'] = get_bottom(blob, dtype=np.int16)
+
+        tracked_blob['contour'] = blob['contour'].copy()
+        tracked_blob['anchor'] = blob['anchor']
+        tracked_blob['bottom'] = blob['bottom']
+        tracked_blob['center'] = blob['center']
         tracked_blob['absence'] = 0
         tracked_blob['presence'] += 1
         if tracked_blob['presence'] >= self.post_filter['presence_min']:
@@ -567,33 +596,33 @@ class GOFPID():
 
     def _post_filter(self, perspective_coeff=0.75):
         """Post-filter pre-alarms with perimeter and perspective."""
-        for i in range(len(self.tracked_blobs_)):
+        for tracked_blob in self.tracked_blobs_:
             # filtering by perimeter
             if cv.pointPolygonTest(
                 self.post_filter['perimeter'],
-                self.tracked_blobs_[i]['anchor'],
+                tracked_blob['anchor'],
                 False,
             ) < 0:
                 # object not in perimeter => filtered
-                self.tracked_blobs_[i]['filter'].add('perimeter')
+                tracked_blob['filter'].add('perimeter')
             else:
                 # object in perimeter
-                self.tracked_blobs_[i]['filter'].discard('perimeter')
+                tracked_blob['filter'].discard('perimeter')
 
             # filtering by perspective
             _, _, width, height = cv.boundingRect(
-                self.tracked_blobs_[i]['contour']
+                tracked_blob['contour']
             )
             area = width * height
             area_min = self._perspective.predict(
-                self.tracked_blobs_[i]['bottom'][1]
+                tracked_blob['bottom'][1]
             )
             if area <= area_min * self.post_filter['perspective_coeff']:
-                # object is too small => filtered
-                self.tracked_blobs_[i]['filter'].add('perspective')
+                # object is smaller than minimal perspective => filtered
+                tracked_blob['filter'].add('perspective')
             else:
                 # object of interest
-                self.tracked_blobs_[i]['filter'].discard('perspective')
+                tracked_blob['filter'].discard('perspective')
 
     def _detect_blob(self):
         """Detect intrusion blob by blob."""
@@ -620,19 +649,20 @@ class GOFPID():
         """
         cv.drawContours(X, [self.post_filter['perimeter']], 0, (25, 200, 200))
 
-        for blob in self.tracked_blobs_:
-            if blob['filter'] == set():
+        for tracked_blob in self.tracked_blobs_:
+            if tracked_blob['filter'] == set():
                 color = (0, 0, 255)
-            elif 'perimeter' in blob['filter']:
+            elif 'perimeter' in tracked_blob['filter']:
                 color = (255, 0, 0)
-            elif 'perspective' in blob['filter']:
+            elif 'perspective' in tracked_blob['filter']:
                 color = (25, 200, 200)
-            elif 'presence' in blob['filter'] or 'distance' in blob['filter']:
+            elif 'presence' in tracked_blob['filter'] \
+                    or 'distance' in tracked_blob['filter']:
                 color = (0, 255, 0)
             else:
                 raise ValueError('Unknown filtering type')
-            cv.drawContours(X, [blob['contour']], 0, color)
-            cv.circle(X, blob['anchor'], 4, color, -1)
+            cv.drawContours(X, [tracked_blob['contour']], 0, color)
+            cv.circle(X, tracked_blob['anchor'], 4, color, -1)
 
         cv.imshow('Frame', X)
 
