@@ -18,7 +18,7 @@ post_filter = {
     'perspective': perspective,
     'perspective_coeff': 0.5,
     'presence_min': 3,
-    'distance_min': 0.2,
+    'distance_min': 0.25,
 }
 
 
@@ -155,7 +155,7 @@ def test_gofpid_postfilter(anchor):
             'perspective': perspective,
             'perspective_coeff': 0.5,
             'presence_min': 3,
-            'distance_min': 0.2,
+            'distance_min': 0.25,
         },
     ).initialize()
     for _ in range(n_reps):
@@ -171,7 +171,7 @@ def test_gofpid_postfilter(anchor):
             'perspective': perspective,
             'perspective_coeff': 0.5,
             'presence_min': 3,
-            'distance_min': 0.2,
+            'distance_min': 0.25,
         },
         {
             'perimeter': np.array([[1, 5], [3, 9]]),
@@ -179,14 +179,14 @@ def test_gofpid_postfilter(anchor):
             'perspective': perspective,
             'perspective_coeff': 0.5,
             'presence_min': 3,
-            'distance_min': 0.2,
+            'distance_min': 0.25,
         },
         {
             'perimeter': perimeter,
             'perspective': perspective,
             'perspective_coeff': 0.5,
             'presence_min': 3,
-            'distance_min': 0.2,
+            'distance_min': 0.25,
         },
         {
             'perimeter': perimeter,
@@ -194,14 +194,14 @@ def test_gofpid_postfilter(anchor):
             'perspective': perspective,
             'perspective_coeff': 0.5,
             'presence_min': 3,
-            'distance_min': 0.2,
+            'distance_min': 0.25,
         },
         {
             'perimeter': perimeter,
             'anchor': 'center',
             'perspective_coeff': 0.5,
             'presence_min': 3,
-            'distance_min': 0.2,
+            'distance_min': 0.25,
         },
         {
             'perimeter': perimeter,
@@ -209,21 +209,21 @@ def test_gofpid_postfilter(anchor):
             'perspective': np.array([[1, 5, 2], [3, 9, 4]]),
             'perspective_coeff': 0.5,
             'presence_min': 3,
-            'distance_min': 0.2,
+            'distance_min': 0.25,
         },
         {
             'perimeter': perimeter,
             'anchor': 'center',
             'perspective': perspective,
             'presence_min': 3,
-            'distance_min': 0.2,
+            'distance_min': 0.25,
         },
         {
             'perimeter': perimeter,
             'anchor': 'center',
             'perspective': perspective,
             'perspective_coeff': 0.5,
-            'distance_min': 0.2,
+            'distance_min': 0.25,
         },
         {
             'perimeter': perimeter,

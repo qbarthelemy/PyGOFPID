@@ -32,7 +32,7 @@ gofpid = GOFPID(
         'perspective': None,
         'perspective_coeff': 0.0,
         'presence_min': 3,
-        'distance_min': 10,
+        'distance_min': 0.25,
         'config_video_filename': video_filename,
     },
     verbose=True

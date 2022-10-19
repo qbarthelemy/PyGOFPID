@@ -63,11 +63,11 @@ gofpid = GOFPID(
         'perspective': perspective,
         'perspective_coeff': 0.5,
         'presence_min': 3,
-        'distance_min': 0.1,
+        'distance_min': 0.25,
         'config_frame': frame,
     },
     verbose=True
-).init()
+).initialize()
 
 # Intrusion detection
 # TODO

@@ -63,23 +63,23 @@ class GOFPID():
 
     post_filter : dict, default={'perimeter': None, 'anchor_point': 'bottom', \
             'perspective': None, 'perspective_coeff': 0.5, 'presence_min': 3, \
-            'distance_min': 0.1}
+            'distance_min': 0.25}
         Dictionary containing parameters to filter pre-alarms:
 
         - perimeter: None, or list of points in normalized coordinates.
           If None, perimeter is the whole frame.
         - anchor: point of object, 'center' or 'bottom', to determine if it is
           in the perimeter.
-        - perspective: list of four points in normalized coordinates, defining
-          the minimum sizes of objects to detect. Two boxes represent a person
-          in the image (one box in the foreground and a second in the
+        - perspective: None, or list of four points in normalized coordinates,
+          defining the minimal areas of objects to detect. Two boxes represent
+          a person in the image (one box in the foreground and a second in the
           background).
           If None, perspective is initialized on a default configuration.
-        - perspective_coeff: multiplicative coefficient of tolerance on size of
-          perspective.
+        - perspective_coeff: multiplicative coefficient of tolerance applied on
+          the minimal area predicted by perspective.
         - presence_min: number of frames where the object must be present and
           tracked before raising intrusion alarm, to filter transient blobs.
-        - distance_min: distance, given in pixel, the object
+        - distance_min: distance, given in percentage of blob size, the object
           must travel before raising intrusion alarm, to filter motionless
           blobs.
 
@@ -149,7 +149,7 @@ class GOFPID():
             'perspective': None,
             'perspective_coeff': 0.5,
             'presence_min': 3,
-            'distance_min': 10,
+            'distance_min': 0.25,
         },
         verbose=False
     ):
@@ -299,7 +299,8 @@ class GOFPID():
             )
         elif isinstance(self.post_filter['perspective'], np.ndarray):
             if self.post_filter['perspective'].shape != (4, 2):
-                 raise ValueError('Parameter perspective has not the good shape.')
+                raise ValueError(
+                    'Parameter perspective has not the good shape.')
         else:
             raise ValueError('Unknown type for parameter "perspective".')
 
@@ -379,22 +380,12 @@ class GOFPID():
         # input shape checking
         if not self.input_shape_:
             self.input_shape_ = X.shape
-            # finish perimeter configuration using first frame
-            self.post_filter['perimeter'] = unnormalize_coords(
-                self.post_filter['perimeter'],
-                self.input_shape_,
-                dtype=np.int32
-            )
-            self.post_filter['perspective'] = unnormalize_coords(
-                self.post_filter['perspective'],
-                self.input_shape_,
-                dtype=np.int32
-            ) # TODO
-            self._calib_perspective()
+            self._calib_first_frame()
         else:
             if X.shape != self.input_shape_:
                 raise ValueError('Input shape has changed.')
 
+        # color conversion
         if self.convert:
             X = cv.cvtColor(X, self.convert)
 
@@ -428,23 +419,35 @@ class GOFPID():
         y = self._detect_blob()
         return y
 
+    def _calib_first_frame(self):
+        """Finish configurations using first frame dimensions."""
+        # perimeter
+        self.post_filter['perimeter'] = unnormalize_coords(
+            self.post_filter['perimeter'],
+            self.input_shape_,
+            dtype=np.int32
+        )
+
+        # perspective  # Q: is this unnormalization really necessary?
+        self.post_filter['perspective'] = unnormalize_coords(
+            self.post_filter['perspective'],
+            self.input_shape_,
+            dtype=np.int32
+        )
+        self._calib_perspective()
+
     def _calib_perspective(self):
-        """Calibrate perspective using linear regression on areas.""" #TODO
+        """Calibrate perspective using linear regression on areas."""
         points = self.post_filter['perspective']
         bottoms = [
             max(points[1][1], points[0][1]),
             max(points[3][1], points[2][1]),
         ]
-        heights = [
-            abs(points[1][1] - points[0][1]),
-            abs(points[3][1] - points[2][1]),
+        areas = [
+            abs(points[1][1] - points[0][1]) * abs(points[1][0] - points[0][0]),
+            abs(points[3][1] - points[2][1]) * abs(points[3][0] - points[2][0]),
         ]
-        self._perspective = SimpleLinearRegression().fit(bottoms, heights)
-        widths = [
-            abs(points[1][0] - points[0][0]),
-            abs(points[3][0] - points[2][0]),
-        ]
-        self._perspective_w = SimpleLinearRegression().fit(bottoms, widths) #TODO
+        self._perspective = SimpleLinearRegression().fit(bottoms, areas)
 
     def _create_blob(self, area_min=100):  #TODO: in parameters ?
         """Create blobs from foreground mask using contour retrieval."""
@@ -455,7 +458,7 @@ class GOFPID():
             method=cv.CHAIN_APPROX_NONE,
         )
 
-        # filter blobs by area
+        # filter blobs with minimal area
         self.blobs_ = [
             contour for contour in contours
             if cv.contourArea(contour) >= area_min
@@ -489,38 +492,39 @@ class GOFPID():
 
             for i in range(n_blobs):
                 j_min = np.argmin(dist[i])
-                #TODO: use features to pair blobs
+                #TODO: use features extracted on contours to pair blobs
                 if dist[i, j_min] < dist_max:  # pair found
-                    dist[i, j_min] = -1
+                    dist[i, j_min] = -1  # to mark that pair has been found
+                    self.tracked_blobs_[j_min]['contour'] = self.blobs_[i].copy()
                     self.tracked_blobs_[j_min]['absence'] = 0
                     self.tracked_blobs_[j_min]['presence'] += 1
                     if self.tracked_blobs_[j_min]['presence'] >= self.post_filter['presence_min']:
                         self.tracked_blobs_[j_min]['filter'].discard('presence')
                     if self._get_distance(j_min) >= self.post_filter['distance_min']:
-                         self.tracked_blobs_[j_min]['filter'].discard('distance')
-                    else:
-                        self.tracked_blobs_[j_min]['filter'].add('distance')
-                    self.tracked_blobs_[j_min]['contour'] = self.blobs_[i].copy()
+                        self.tracked_blobs_[j_min]['filter'].discard('distance')
+                    #else:
+                    #    self.tracked_blobs_[j_min]['filter'].add('distance') # Q: seems dangerous?
+
                 else:
                     self.tracked_blobs_.append(self._create_tracked_blob(i))
 
             for i in range(n_tracked_blobs - 1, 0, -1):
-                if np.all(dist[:, i] >= 0): # no pair found
+                if np.all(dist[:, i] >= 0):  # no pair found
                     self._increase_absence_tracked_blob(i)
 
     def _create_tracked_blob(self, i_blob):
         """Create a tracked blob."""
         tracked_blob = {
+            'contour': self.blobs_[i_blob].copy(),
+            'center_first': get_centers([self.blobs_[i_blob]])[0],
             'presence': 1,
             'absence': 0,
             'filter': set(['presence', 'distance']),
-            'contour': self.blobs_[i_blob].copy(),
-            'center_first': get_centers([self.blobs_[i_blob]])[0],
         }
         return tracked_blob
 
-    def _increase_absence_tracked_blob(self, i_tracked_blob, absence_max=3):
-        """Decrease a tracked blob."""
+    def _increase_absence_tracked_blob(self, i_tracked_blob, absence_max=3):  #TODO: in parameters ?
+        """Increase absence count of tracked blob and apply post-filtering."""
         self.tracked_blobs_[i_tracked_blob]['presence'] = 0
         self.tracked_blobs_[i_tracked_blob]['filter'].add('presence')
         self.tracked_blobs_[i_tracked_blob]['absence'] += 1
@@ -528,43 +532,72 @@ class GOFPID():
             self.tracked_blobs_.pop(i_tracked_blob)
 
     def _get_distance(self, i_tracked_blob):
-        """Compute distance between first and last centers."""
+        """Compute relative distance between first and last centers."""
+        # distance between first and last centers
         center_last = get_centers(
             [self.tracked_blobs_[i_tracked_blob]['contour']],
             dtype=np.int16,
         )[0]
-        distance = cv.norm(
+        dist = cv.norm(
             center_last - self.tracked_blobs_[i_tracked_blob]['center_first']
         )
-        return distance
+
+        # perspective at this position
+        bottom_last = get_bottoms(
+            [self.tracked_blobs_[i_tracked_blob]['contour']],
+            dtype=np.int16,
+        )[0]
+        area_min = self._perspective.predict(bottom_last[1])
+        if area_min <= 0:
+            return 0
+
+        # relative distance: distance normalized by perspective size
+        dist_rel = dist / np.sqrt(area_min)
+        return dist_rel
 
     def _post_filter(self, perspective_coeff=0.75):
         """Post-filter pre-alarms with perimeter and perspective."""
         anchors = self._get_anchors(
             [blob['contour'] for blob in self.tracked_blobs_],
-            dtype=np.int16
+            dtype=np.int16,
         )
+        if self.post_filter['anchor'] == 'bottom':
+            bottoms = anchors
+        else:
+            bottoms = get_bottoms(
+                [blob['contour'] for blob in self.tracked_blobs_],
+                dtype=np.int16,
+            )
 
         for i in range(len(self.tracked_blobs_)):
-            # perimeter
+            # filtering by perimeter
             if cv.pointPolygonTest(
                 self.post_filter['perimeter'],
                 anchors[i],
                 False,
-            ) < 0:  # object not in perimeter
+            ) < 0:
+                # object not in perimeter => filtered
                 self.tracked_blobs_[i]['filter'].add('perimeter')
-            else:  # object in perimeter
+            else:
+                # object in perimeter
                 self.tracked_blobs_[i]['filter'].discard('perimeter')
 
-            # perspective
-            _, _, _, height = cv.boundingRect(
-                self.tracked_blobs_[i]['contour']
-            )
-            height_min = self._perspective.predict(anchors[i][1])
-            if height <= height_min * self.post_filter['perspective_coeff']:  # object too small
+            # filtering by perspective
+            area = self._get_area(i)
+            area_min = self._perspective.predict(bottoms[i][1])
+            if area <= area_min * self.post_filter['perspective_coeff']:
+                # object is too small => filtered
                 self.tracked_blobs_[i]['filter'].add('perspective')
-            else:  # object acceptable
+            else:
+                # object of interest
                 self.tracked_blobs_[i]['filter'].discard('perspective')
+
+    def _get_area(self, i_tracked_blob):
+        """Get area of a tracked blob."""
+        _, _, width, height = cv.boundingRect(
+            self.tracked_blobs_[i_tracked_blob]['contour']
+        )
+        return width * height
 
     def _detect_blob(self):
         """Detect intrusion blob by blob."""

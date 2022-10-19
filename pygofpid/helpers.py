@@ -135,7 +135,7 @@ class SimpleLinearRegression():
         self.intercept = None
 
     def fit(self, x, y):
-        """Fit linear model.
+        """Fit linear model on two samples.
 
         Fit the parameters (a,b) of a simple linear regression between two
         samples, such as: y = a * x + b
@@ -147,6 +147,10 @@ class SimpleLinearRegression():
         y : ndarray, shape (2,)
             Target values.
         """
+        if len(x) != 2:
+            raise ValueError('Fit only two samples.')
+        if len(x) != len(y):
+            raise ValueError('Inputs must have the same size.')
         self.coeff = (y[1] - y[0]) / (x[1] - x[0])
         self.intercept = y[0] - self.coeff * x[0]
         return self

@@ -91,7 +91,17 @@ def test_unnormalize_coords(gt, ncoords):
 def test_simplelinearregression():
     """Test SimpleLinearRegression."""
     slr = SimpleLinearRegression()
-    x = [-1, 0, 1, 2, 3, 4]
-    y = [42, 41, 40, 39, 38, 37]
+    x, y = [3, 4], [38, 37]
     slr.fit(x, y)
     assert slr.predict([5]) == 36.0
+
+
+def test_simplelinearregression_errors():
+    """Test SimpleLinearRegression errors."""
+    slr = SimpleLinearRegression()
+    x = [-1, 0, 1, 2, 3, 4]
+    y = [42, 41, 40, 39, 38, 37]
+    with pytest.raises(ValueError):
+        slr.fit(x, y)
+    with pytest.raises(ValueError):
+        slr.fit(x, y[1:])
