@@ -389,11 +389,11 @@ class GOFPID():
             if X.shape != self.input_shape_:
                 raise ValueError('Input shape has changed.')
 
-        # color conversion
+        # input frame color conversion
         if self.convert:
             X = cv.cvtColor(X, self.convert)
 
-        # denoising by spatial blurring
+        # input frame denoising by spatial blurring
         if self.blur:
             X = self.blur.get('fun')(
                 X,
@@ -404,7 +404,7 @@ class GOFPID():
         # foreground detection
         mask = self._frg_detect_mth.apply(X)
 
-        # denoising by mathematical morphology
+        # foreground mask denoising by mathematical morphology
         if self.mat_morph:
             for d in self.mat_morph:
                 mask = d.get('fun')(mask, d.get('kernel'))
@@ -448,8 +448,8 @@ class GOFPID():
             max(points[3][1], points[2][1]),
         ]
         areas = [
-            abs(points[1][1] - points[0][1]) * abs(points[1][0] - points[0][0]),
-            abs(points[3][1] - points[2][1]) * abs(points[3][0] - points[2][0]),
+            abs((points[1][1] - points[0][1]) * (points[1][0] - points[0][0])),
+            abs((points[3][1] - points[2][1]) * (points[3][0] - points[2][0])),
         ]
         self._perspective = SimpleLinearRegression().fit(bottoms, areas)
 
@@ -468,7 +468,7 @@ class GOFPID():
             if cv.contourArea(contour) >= area_min
         ]
 
-        # create blobs
+        # create instantaneous blobs
         self.blobs_ = [
             self._create_blob(contour) for contour in contours
         ]
@@ -490,9 +490,11 @@ class GOFPID():
         }
         return blob
 
-    #TODO: WIP, because very naive tracking
     def _track_blob(self, dist_max=100):  #TODO: in parameters ?
-        """Track blobs using only distance to centers."""
+        """Track blobs.
+
+        This naive tracking uses only distance between centers.  #TODO: WIP
+        """
         n_blobs = len(self.blobs_)
         if self.tracked_blobs_ is None:
             self.tracked_blobs_ = []
@@ -566,12 +568,9 @@ class GOFPID():
     def _get_distance(self, i_tracked_blob):
         """Compute relative distance between first and last centers."""
         # distance between first and last centers
-        center_last = get_center(
-            self.tracked_blobs_[i_tracked_blob]['contour'],
-            dtype=np.int16,
-        )
         dist = cv.norm(
-            center_last - self.tracked_blobs_[i_tracked_blob]['center_first']
+            self.tracked_blobs_[i_tracked_blob]['center']
+            - self.tracked_blobs_[i_tracked_blob]['center_first']
         )
 
         # perspective size at the position of tracked blob
@@ -582,7 +581,7 @@ class GOFPID():
             return 0
 
         # relative distance: distance normalized by perspective size
-        # => filtering distance as a function of depth
+        # => filtering distance is a function of depth
         dist_rel = dist / np.sqrt(area_min)
         return dist_rel
 

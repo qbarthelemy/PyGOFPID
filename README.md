@@ -27,7 +27,7 @@ pipeline, composed of:
 6. post-filtering;
 7. intrusion detection.
 
-See `examples\video.py` for a simple example.
+See `examples/video.py` for a simple example.
 
 ## Comparison
 
@@ -37,7 +37,7 @@ between good old fashioned and deep learning based PID.
 For a benchmark between PIDs on [i-LIDS dataset](https://ieeexplore.ieee.org/document/4105319),
 see [pyPID](https://gitlab.liris.cnrs.fr/dlohani/pypid).
 
-See `examples\dataset_ilids.py` for configurations of i-LIDS views.
+See `examples/dataset_ilids.py` for configurations of i-LIDS views.
 
 ## Installation
 
