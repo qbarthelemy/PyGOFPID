@@ -47,6 +47,7 @@ while True:
 
     y = gofpid.detect(frame)
     gofpid.display(frame)
+    cv.imshow('Frame', frame)
 
     if cv.waitKey(1) & 0xFF == ord('c'):
         vidcap.release()

@@ -663,8 +663,6 @@ class GOFPID():
             cv.drawContours(X, [tracked_blob['contour']], 0, color)
             cv.circle(X, tracked_blob['anchor'], 4, color, -1)
 
-        cv.imshow('Frame', X)
-
 
 ###############################################################################
 
