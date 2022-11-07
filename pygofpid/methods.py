@@ -456,11 +456,15 @@ class GOFPID():
     def _find_blob(self, area_min=100):  #TODO: in parameters ?
         """Find blobs from foreground mask using contour retrieval."""
         # find blobs using contour retrieval
-        _, contours, _ = cv.findContours(
-            self.foreground_mask_,
-            mode=cv.RETR_EXTERNAL,
-            method=cv.CHAIN_APPROX_NONE,
+        outs = cv.findContours(
+               self.foreground_mask_,
+               mode=cv.RETR_EXTERNAL,
+               method=cv.CHAIN_APPROX_NONE,
         )
+        if cv.__version__ < '4.0.0':
+            _, contours, _ = outs
+        else:
+            contours, _ = outs
 
         # filter contours with minimal area
         contours = [
