@@ -33,8 +33,8 @@ def test_gofpid_errors():
         gofpid.detect(img2)
 
 
-@pytest.mark.parametrize("convert",
-    [None, cv.COLOR_BGR2GRAY, cv.COLOR_RGB2GRAY]
+@pytest.mark.parametrize(
+    "convert", [None, cv.COLOR_BGR2GRAY, cv.COLOR_RGB2GRAY]
 )
 def test_gofpid_convert(convert):
     """Test convert parameter."""

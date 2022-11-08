@@ -12,6 +12,7 @@ def change_extension(filename_input, ext_new='png'):
 
 def read_first_frame(video_filename):
     """Read first frame of a video."""
+
     vidcap = cv.VideoCapture(video_filename)
     if not vidcap.isOpened():
         raise ValueError('Unable to open video %s.' % video_filename)
@@ -42,7 +43,23 @@ def plot_squares(X, points, thickness, c=(0, 0, 255)):
 
 
 def find_point(coord, points, thickness):
-    """Find the point selected by coordinates."""
+    """Find the point selected by coordinates.
+
+    Parameters
+    ----------
+    coord : ndarray, shape (2,)
+        Input coordinates.
+    points : ndarray, shape (n_points, 2)
+        Points.
+    thickness : ndarray, shape (2,)
+        Thickness of points.
+
+    Returns
+    -------
+    i : int
+        Index of selected point.
+    """
+
     for i, point in enumerate(points):
         if cv.pointPolygonTest(
             np.array([
@@ -60,7 +77,23 @@ def find_point(coord, points, thickness):
 
 
 def find_line(coord, points, thickness):
-    """Find the line selected by coordinates."""
+    """Find the line selected by coordinates.
+
+    Parameters
+    ----------
+    coord : ndarray, shape (2,)
+        Input coordinates.
+    points : ndarray, shape (n_points, 2)
+        Points defining lines.
+    thickness : ndarray, shape (2,)
+        Thickness of lines.
+
+    Returns
+    -------
+    i : int
+        Index of selected line.
+    """
+
     n_points = len(points)
     if n_points < 2:
         return -1
@@ -91,6 +124,7 @@ def find_line(coord, points, thickness):
 
 def get_bottom(contour, dtype=np.int16):
     """Compute middle-bottom point of a contour."""
+
     moments = cv.moments(contour)
     x = int(moments["m10"] / moments["m00"])
     y = max(contour[..., 1])  # downward axis => bottom = max
@@ -99,6 +133,7 @@ def get_bottom(contour, dtype=np.int16):
 
 def get_center(contour, dtype=np.int16):
     """Compute center of a contour."""
+
     moments = cv.moments(contour)
     x = int(moments["m10"] / moments["m00"])
     y = int(moments["m01"] / moments["m00"])
@@ -107,6 +142,7 @@ def get_center(contour, dtype=np.int16):
 
 def normalize_coords(coords, shape, dtype=np.float64):
     """Transform image coords (x,y) into normalized coords in [0,1]."""
+
     ncoords = np.asarray(coords, dtype=dtype)
     ncoords[..., 0] /= shape[1]
     ncoords[..., 1] /= shape[0]
@@ -115,6 +151,7 @@ def normalize_coords(coords, shape, dtype=np.float64):
 
 def unnormalize_coords(ncoords, shape, dtype=np.uint16):
     """Transform normalized coords (x,y) in [0,1] into image coords."""
+
     coords = np.asarray(ncoords, dtype=np.float64)
     coords[..., 0] *= shape[1]
     coords[..., 1] *= shape[0]
@@ -122,7 +159,10 @@ def unnormalize_coords(ncoords, shape, dtype=np.uint16):
 
 
 class SimpleLinearRegression():
-    """Simple linear regression."""
+    """Simple linear regression.
+
+    Simple linear regression: y = a * x + b.
+    """
 
     def __init__(self):
         self.coeff = None
@@ -140,11 +180,18 @@ class SimpleLinearRegression():
             Training values.
         y : ndarray, shape (2,)
             Target values.
+
+        Returns
+        -------
+        self : object
+            Fitted instance.
         """
+
         if len(x) != 2:
             raise ValueError('Fit only two samples.')
         if len(x) != len(y):
             raise ValueError('Inputs must have the same size.')
+
         self.coeff = (y[1] - y[0]) / (x[1] - x[0])
         self.intercept = y[0] - self.coeff * x[0]
         return self
@@ -165,4 +212,5 @@ class SimpleLinearRegression():
         y : ndarray, shape (n,)
             Predicted values.
         """
+
         return self.coeff * np.asarray(x) + self.intercept

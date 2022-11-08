@@ -132,6 +132,7 @@ class GOFPID():
     .. [Ersn] https://docs.opencv.org/3.4.0/d4/d86/group__imgproc__filter.html#gaeb1e0c1033e3f6b891a25d0511362aeb
     .. [Dltn] https://docs.opencv.org/3.4.0/d4/d86/group__imgproc__filter.html#ga4ff0f3318642c4f469d0e11f242f3b6c
     """  # noqa
+
     def __init__(
         self,
         convert=None,
@@ -174,8 +175,9 @@ class GOFPID():
         Returns
         -------
         self : object
-            Returns self.
+            Initialized instance.
         """
+
         if self.blur:
             if 'fun' not in self.blur.keys():
                 raise ValueError('Parameter blur has no key "fun".')
@@ -226,6 +228,7 @@ class GOFPID():
 
     def _check_perimeter(self):
         """Check parameter perimeter."""
+
         if 'perimeter' not in self.post_filter.keys():
             raise ValueError('Parameter post_filter has no key "perimeter".')
 
@@ -248,11 +251,12 @@ class GOFPID():
 
     def _config_perimeter(self, window_name="Configure perimeter"):
         """Display window to configure perimeter."""
+
         img, clone, thickness = self._get_config_img()
 
         points = unnormalize_coords(
             self.post_filter['perimeter'],
-            img.shape
+            img.shape,
         ).tolist()
 
         def move_line(event, x, y, flags, params):
@@ -294,6 +298,7 @@ class GOFPID():
 
     def _check_perspective(self):
         """Check parameter perspective."""
+
         if 'perspective' not in self.post_filter.keys():
             raise ValueError('Parameter post_filter has no key "perspective".')
 
@@ -313,12 +318,13 @@ class GOFPID():
 
     def _config_perspective(self, window_name="Configure perspective"):
         """Display window to configure perspective."""
+
         img, clone, thickness = self._get_config_img()
 
         points = unnormalize_coords(
             self.post_filter['perspective'],
             img.shape,
-            dtype=np.int32
+            dtype=np.int32,
         )
 
         def move_rectangle(event, x, y, flags, params):
@@ -352,6 +358,8 @@ class GOFPID():
         elif 'config_frame' in self.post_filter.keys():
             img = self.post_filter['config_frame']
         else:
+            if (self.verbose):
+                print("No configuration video or frame defined.")
             img = 100 * np.ones((240, 320, 3), dtype=np.uint8)
 
         if img is None:
@@ -362,7 +370,7 @@ class GOFPID():
         thickness = unnormalize_coords(
             np.array([[0.02, 0.02]]),
             img.shape,
-            dtype=np.int32
+            dtype=np.int32,
         )[0]
 
         return img, clone, thickness
@@ -381,6 +389,7 @@ class GOFPID():
         y : int
             Prediction of intrusion: 1 if intrusion detected, 0 otherwise.
         """
+
         # input shape checking
         if not self.input_shape_:
             self.input_shape_ = X.shape
@@ -425,23 +434,25 @@ class GOFPID():
 
     def _calib_first_frame(self):
         """Finish configurations using first frame dimensions."""
+
         # perimeter
         self.post_filter['perimeter'] = unnormalize_coords(
             self.post_filter['perimeter'],
             self.input_shape_,
-            dtype=np.int32
+            dtype=np.int32,
         )
 
         # perspective  # Q: is this unnormalization really necessary?
         self.post_filter['perspective'] = unnormalize_coords(
             self.post_filter['perspective'],
             self.input_shape_,
-            dtype=np.int32
+            dtype=np.int32,
         )
         self._calib_perspective()
 
     def _calib_perspective(self):
         """Calibrate perspective: area as a function of bottom point."""
+
         points = self.post_filter['perspective']
         bottoms = [
             max(points[1][1], points[0][1]),
@@ -455,11 +466,12 @@ class GOFPID():
 
     def _find_blob(self, area_min=100):  #TODO: in parameters ?
         """Find blobs from foreground mask using contour retrieval."""
+
         # find blobs using contour retrieval
         outs = cv.findContours(
-               self.foreground_mask_,
-               mode=cv.RETR_EXTERNAL,
-               method=cv.CHAIN_APPROX_NONE,
+            self.foreground_mask_,
+            mode=cv.RETR_EXTERNAL,
+            method=cv.CHAIN_APPROX_NONE,
         )
         if cv.__version__ < '4.0.0':
             _, contours, _ = outs
@@ -479,6 +491,7 @@ class GOFPID():
 
     def _create_blob(self, contour):
         """Create blob from its contour."""
+
         bottom = get_bottom(contour, dtype=np.int16)
         center = get_center(contour, dtype=np.int16)
         if self.post_filter['anchor'] == 'bottom':
@@ -499,6 +512,7 @@ class GOFPID():
 
         This naive tracking uses only distance between centers.  #TODO: WIP
         """
+
         n_blobs = len(self.blobs_)
         if self.tracked_blobs_ is None:
             self.tracked_blobs_ = []
@@ -537,6 +551,7 @@ class GOFPID():
 
     def _create_tracked_blob(self, i_blob):
         """Create a tracked blob."""
+
         blob = self.blobs_[i_blob]
 
         tracked_blob = {
@@ -553,6 +568,7 @@ class GOFPID():
 
     def _update_paired_tracked_blob(self, i_tracked_blob, i_blob):
         """Update a tracked blob paired with an instantaneous blob."""
+
         tracked_blob = self.tracked_blobs_[i_tracked_blob]
         blob = self.blobs_[i_blob]
 
@@ -567,10 +583,11 @@ class GOFPID():
         if self._get_distance(i_tracked_blob) >= self.post_filter['distance_min']:
             tracked_blob['filter'].discard('distance')
         #else:
-        #    tracked_blob['filter'].add('distance') # Q: seems dangerous...?
+        #    tracked_blob['filter'].add('distance') # Q: seems dangerous if circular mouvement?
 
     def _get_distance(self, i_tracked_blob):
         """Compute relative distance between first and last centers."""
+
         # distance between first and last centers
         dist = cv.norm(
             self.tracked_blobs_[i_tracked_blob]['center']
@@ -591,6 +608,7 @@ class GOFPID():
 
     def _update_unpaired_tracked_blob(self, i_tracked_blob, absence_max=3):  #TODO: in parameters ?
         """Update an unpaired tracked blob."""
+
         self.tracked_blobs_[i_tracked_blob]['presence'] = 0
         self.tracked_blobs_[i_tracked_blob]['filter'].add('presence')
         self.tracked_blobs_[i_tracked_blob]['absence'] += 1
@@ -599,6 +617,7 @@ class GOFPID():
 
     def _post_filter(self, perspective_coeff=0.75):
         """Post-filter pre-alarms with perimeter and perspective."""
+
         for tracked_blob in self.tracked_blobs_:
             # filtering by perimeter
             if cv.pointPolygonTest(
@@ -629,6 +648,7 @@ class GOFPID():
 
     def _detect_blob(self):
         """Detect intrusion blob by blob."""
+
         if self.tracked_blobs_ is None:
             return 0
 
@@ -650,9 +670,11 @@ class GOFPID():
                 (n_height, n_width, n_channel)
             Input frame.
         """
+
         cv.drawContours(X, [self.post_filter['perimeter']], 0, (25, 200, 200))
 
         for tracked_blob in self.tracked_blobs_:
+
             if tracked_blob['filter'] == set():
                 color = (0, 0, 255)
             elif 'perimeter' in tracked_blob['filter']:
@@ -664,6 +686,7 @@ class GOFPID():
                 color = (0, 255, 0)
             else:
                 raise ValueError('Unknown filtering type')
+
             cv.drawContours(X, [tracked_blob['contour']], 0, color)
             cv.circle(X, tracked_blob['anchor'], 4, color, -1)
 
@@ -683,6 +706,7 @@ class FrameDifferencing():
     ----------
     .. [1] https://en.wikipedia.org/wiki/Foreground_detection#Using_frame_differencing
     """  # noqa
+
     def __init__(self, threshold=5):
         self.threshold = threshold
         self._X = None
@@ -700,9 +724,9 @@ class FrameDifferencing():
         X_new : ndarray
             Foreground frame.
         """
+
         if self._X is None:
             X_new = np.zeros_like(X)
-
         else:
             diff = cv.absdiff(X, self._X)
             _, X_new = cv.threshold(
@@ -712,8 +736,8 @@ class FrameDifferencing():
                 cv.THRESH_BINARY,
             )
 
+        self._X = X
         if X_new.ndim > 2:
             X_new = np.mean(X_new, axis=-1, dtype=np.uint8, keepdims=False)
-        self._X = X
 
         return X_new
