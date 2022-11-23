@@ -9,8 +9,8 @@ systems for video protection.
 
 Leveraging [OpenCV](https://github.com/opencv/opencv-python), you can easily
 define a pipeline using good old fashioned (GOF) computer vision methods, like
-[foreground detection](https://en.wikipedia.org/wiki/Foreground_detection)
-and [mathematical morphology](https://en.wikipedia.org/wiki/Mathematical_morphology).
+[foreground detection](https://en.wikipedia.org/wiki/Foreground_detection) and
+[mathematical morphology](https://en.wikipedia.org/wiki/Mathematical_morphology).
 
 PyGOFPID is distributed under the open source 3-clause BSD license.
 
@@ -29,15 +29,18 @@ pipeline, composed of:
 
 See `examples/video.py` for a simple example.
 
-## Comparison
+## Comparison on i-LIDS
 
 GOFPID is useful for comparison between ancient and new generations of PID,
 between good old fashioned and deep learning based PID.
 
-For a benchmark between PIDs on [i-LIDS dataset](https://ieeexplore.ieee.org/document/4105319),
-see [pyPID](https://gitlab.liris.cnrs.fr/dlohani/pypid).
+[i-LIDS](https://ieeexplore.ieee.org/document/4105319) is a standard dataset
+for testing video based PID.
 
-See `examples/dataset_ilids.py` for configurations of i-LIDS views.
+See [pyPID](https://gitlab.liris.cnrs.fr/dlohani/pypid) for a benchmark between
+PID systems on i-LIDS dataset.
+
+See `examples/dataset_ilids.py` for GOFPID configurations of i-LIDS views.
 
 ## Installation
 
@@ -45,7 +48,7 @@ See `examples/dataset_ilids.py` for configurations of i-LIDS views.
 
 To install PyGOFPID as a standard module:
 ```shell 
-pip install path/to/PyGOFPID
+pip install git+https://github.com/qbarthelemy/PyGOFPID
 ```
 
 To install PyGOFPID in editable / development mode, in the folder:
