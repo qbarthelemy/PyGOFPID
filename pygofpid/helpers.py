@@ -158,6 +158,20 @@ def unnormalize_coords(ncoords, shape, dtype=np.uint16):
     return coords.astype(dtype)
 
 
+def cdist_euclidean(XA, XB):
+    """NumPy implementation of SciPy's cdist.
+
+    Replace scipy.spatial.distance.cdist(XA, XB, 'euclidean').
+    """
+    XA, XB = np.asarray(XA), np.asarray(XB)
+    mA, mB = len(XA), len(XB)
+    dm = np.zeros((mA, mB))
+    for i in range(mA):
+        for j in range(mB):
+            dm[i, j] = np.linalg.norm(XA[i] - XB[j])
+    return dm
+
+
 class SimpleLinearRegression():
     """Simple linear regression.
 

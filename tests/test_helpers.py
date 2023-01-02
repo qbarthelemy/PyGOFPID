@@ -14,6 +14,7 @@ from pygofpid.helpers import (
     get_center,
     normalize_coords,
     unnormalize_coords,
+    cdist_euclidean,
     SimpleLinearRegression,
 )
 
@@ -86,6 +87,15 @@ def test_unnormalize_coords(gt, ncoords):
     """Test unnormalize_coords."""
     coords = unnormalize_coords([ncoords], [128, 128])[0]
     assert gt == approx(coords)
+
+
+def test_cdist_euclidean():
+    """Test cdist_euclidean."""
+    XA = np.array([[0, 0], [0, 10]])
+    XB = np.array([[0, 0], [0, 10], [10, 0]])
+    dists = cdist_euclidean(XA, XB)
+    assert dists.shape == (len(XA), len(XB))
+    np.testing.assert_almost_equal(dists, [[0, 10, 10], [10, 0, 14.14213562]])
 
 
 def test_simplelinearregression():

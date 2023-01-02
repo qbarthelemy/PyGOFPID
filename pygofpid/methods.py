@@ -1,7 +1,6 @@
 """Methods."""
 
 import numpy as np
-from scipy.spatial.distance import cdist
 import cv2 as cv
 
 from .helpers import (
@@ -14,6 +13,7 @@ from .helpers import (
     find_line,
     normalize_coords,
     unnormalize_coords,
+    cdist_euclidean,
     SimpleLinearRegression,
 )
 
@@ -533,7 +533,7 @@ class GOFPID():
         blobs_cent = [blob['center'] for blob in self.blobs_]
         tracked_blobs_cent = [blob['center'] for blob in self.tracked_blobs_]
         dist = np.atleast_2d(
-            cdist(blobs_cent, tracked_blobs_cent, 'euclidean')
+            cdist_euclidean(blobs_cent, tracked_blobs_cent)
         )
 
         for i in range(n_blobs):
