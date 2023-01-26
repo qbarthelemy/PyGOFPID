@@ -44,8 +44,8 @@ PID systems on i-LIDS dataset, with results given for
 
 | Methods | View 1 | View 2 |
 | ------- | ------ | ------ |
-| YOLOv2 + SORT [Nayak2019](https://ieeexplore.ieee.org/document/9117960) | 0.62 0.52 0.57 | 0.99 0.47 0.64 |
-| 3DCAE + MZ [Lohani2022](https://ieeexplore.ieee.org/document/9897472) | 0.90 0.74 0.81 | 0.83 0.64 0.73 |
+| YOLOv2 + SORT [[Nayak2019]](https://ieeexplore.ieee.org/document/9117960) | 0.62 0.52 0.57 | 0.99 0.47 0.64 |
+| 3DCAE + MZ [[Lohani2022]](https://ieeexplore.ieee.org/document/9897472) | 0.90 0.74 0.81 | 0.83 0.64 0.73 |
 | GOFPID v1.0.0 | 0.69 0.61 0.65 | 0.80 0.59 0.68 |
 
 See `examples/dataset_ilids.py` for GOFPID configurations of i-LIDS views.
