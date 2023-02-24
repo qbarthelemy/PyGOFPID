@@ -61,8 +61,7 @@ pip install git+https://github.com/qbarthelemy/PyGOFPID
 
 To install PyGOFPID in editable / development mode, in the folder:
 ```shell
-pip install poetry
-poetry install
+pip install -e .
 ```
 
 ## Testing
