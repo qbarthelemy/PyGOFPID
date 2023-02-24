@@ -38,8 +38,10 @@ class GOFPID():
     convert : OpenCV color conversion codes | None, default=None
         Convert input frame from color to gray [Color]_.
 
-    blur : OpenCV bur filter | None, default={'fun': cv.GaussianBlur, \
-            'ksize': (3, 3), 'borderType': cv.BORDER_DEFAULT}
+    blur : OpenCV bur filter | None, default={ \
+            'fun': cv.GaussianBlur, \
+            'ksize': (3, 3), \
+            'borderType': cv.BORDER_DEFAULT}
         OpenCV filter for spatial blurring and its parameters:
 
         - cv.GaussianBlur for a Gaussian filter [GaussBlur]_;
@@ -54,17 +56,23 @@ class GOFPID():
         - 'FD' frame differencing.
 
     mat_morph : list of dict | None, default=[ \
-            {'fun': cv.erode, 'kernel': cv.getStructuringElement(cv.MORPH_RECT, (5, 5))}, \
-            {'fun': cv.dilate, 'kernel': cv.getStructuringElement(cv.MORPH_RECT, (5, 5))}]
+            {'fun': cv.erode, \
+             'kernel': cv.getStructuringElement(cv.MORPH_RECT, (5, 5))}, \
+            {'fun': cv.dilate, \
+             'kernel': cv.getStructuringElement(cv.MORPH_RECT, (5, 5))}]
         List of dictionaries containing OpenCV operators for mathematical
         morphology, and their parameters: 'cv.erode' for erosion [Ersn]_, and
         'cv.dilate' for dilation [Dltn]_.
         If None, no processing.
 
-    post_filter : dict, default={'perimeter': None, 'anchor_point': 'bottom', \
-            'perspective': None, 'perspective_coeff': 0.5, 'presence_min': 3, \
+    post_filter : dict, default={ \
+            'perimeter': None, \
+            'anchor_point': 'bottom', \
+            'perspective': None, \
+            'perspective_coeff': 0.5, \
+            'presence_min': 3, \
             'distance_min': 0.25}
-        Dictionary containing parameters to filter pre-alarms:
+        Dictionary containing parameters to post-filter detections:
 
         - perimeter: None, or list of points in normalized coordinates.
           If None, perimeter is the whole frame.
@@ -653,7 +661,7 @@ class GOFPID():
             return 0
 
         y = 0
-        for i, blob in enumerate(self.tracked_blobs_):
+        for blob in self.tracked_blobs_:
             if blob['filter'] == set():  # no filter => intrusion detected
                 y = 1
 

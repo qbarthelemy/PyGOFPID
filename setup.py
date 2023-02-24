@@ -12,7 +12,7 @@ install_requires = \
 
 setup_kwargs = {
     'name': 'pygofpid',
-    'version': '1.0.0',
+    'version': '1.0.1',
     'description': 'PyGOFPID is a Python package for good old fashioned perimeter intrusion detection system',
     'long_description': 'PyGOFPID is a Python package for good old fashioned perimeter intrusion detection system',
     'author': 'Quentin Barthelemy',
