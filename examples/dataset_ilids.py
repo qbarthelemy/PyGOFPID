@@ -80,6 +80,10 @@ gofpid = GOFPID(
         'distance_min': 0.25,
         'config_frame': cv.imread(config_frame_filename, cv.IMREAD_GRAYSCALE),
     },
+    alarm_def={
+        'keep_alarm': True,
+        'duration_min': 15,
+    },
     verbose=True
 ).initialize()
 
