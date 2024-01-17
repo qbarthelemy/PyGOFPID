@@ -105,6 +105,17 @@ class GOFPID():
         For perspective, a window allows to draw these rectangles according to
         the size of a person placed in these places in the image.
 
+    alarm_def : dict, default={'keep_alarm': True, 'duration_min': 10}
+        Dictionary containing parameters defining alarm behavior:
+
+        - keep_alarm: boolean defining if a tracked object in alarm once will
+          remain always in alarm.
+        - duration_min: when an alarm is raised, number of frames during which
+          the alarm is maintained whatever happens (to avoid multiple alarms).
+
+    verbose : bool, default=False
+        Verbose mode.
+
     Attributes
     ----------
     foreground_mask_ : ndarray of int, shape (n_height, n_width, n_color)
@@ -127,7 +138,10 @@ class GOFPID():
         - center_first: center point of tracked blob when created;
         - presence: presence count;
         - absence: absence count;
-        - filter: types of filtering.
+        - filter: types of post-filtering (perimeter, perspective, presence,
+          distance);
+        - already_in_alarm: boolean defining if a tracked object has already
+          been in alarm at least once.
 
     References
     ----------
@@ -168,13 +182,18 @@ class GOFPID():
             'presence_min': 3,
             'distance_min': 0.25,
         },
-        verbose=False
+        alarm_def={
+            'keep_alarm': True,
+            'duration_min': 10,
+        },
+        verbose=False,
     ):
         self.convert = convert
         self.blur = blur
         self.frg_detect = frg_detect
         self.mat_morph = mat_morph
         self.post_filter = post_filter
+        self.alarm_def = alarm_def
         self.verbose = verbose
 
     def initialize(self):
@@ -188,7 +207,7 @@ class GOFPID():
 
         if self.blur:
             if 'fun' not in self.blur.keys():
-                raise ValueError('Parameter blur has no key "fun".')
+                raise KeyError('Parameter blur has no key "fun".')
             if 'ksize' not in self.blur.keys():
                 self.blur['ksize'] = (3, 3)
             if 'borderType' not in self.blur.keys():
@@ -206,7 +225,7 @@ class GOFPID():
         if self.mat_morph:
             for d in self.mat_morph:
                 if 'fun' not in d.keys():
-                    raise ValueError('Parameter mat_morph has no key "fun".')
+                    raise KeyError('Parameter mat_morph has no key "fun".')
                 if 'kernel' not in d.keys():
                     d['kernel'] = cv.getStructuringElement(
                         cv.MORPH_RECT,
@@ -214,23 +233,30 @@ class GOFPID():
                     )
 
         if 'anchor' not in self.post_filter.keys():
-            raise ValueError('Parameter post_filter has no key "anchor".')
+            raise KeyError('Parameter post_filter has no key "anchor".')
         if self.post_filter['anchor'] not in ['bottom', 'center']:
             raise ValueError('Parameter anchor must be "bottom" or "center".')
         if 'perspective_coeff' not in self.post_filter.keys():
-            raise ValueError(
+            raise KeyError(
                 'Parameter post_filter has no key "perspective_coeff".')
         if 'presence_min' not in self.post_filter.keys():
-            raise ValueError(
-                'Parameter post_filter has no key "presence_min".')
+            raise KeyError('Parameter post_filter has no key "presence_min".')
         if 'distance_min' not in self.post_filter.keys():
-            raise ValueError(
-                'Parameter post_filter has no key "distance_min".')
+            raise KeyError('Parameter post_filter has no key "distance_min".')
         self._check_perimeter()
         self._check_perspective()
 
+        if 'keep_alarm' not in self.alarm_def.keys():
+            raise KeyError('Parameter alarm_def has no key "keep_alarm".')
+        if 'duration_min' not in self.alarm_def.keys():
+            raise KeyError('Parameter alarm_def has no key "duration_min".')
+
         self.tracked_blobs_ = None
         self.input_shape_ = None
+        self._alarm_system = {
+            'already_in_alarm': False,
+            'duration': 0,
+        }
 
         return self
 
@@ -238,7 +264,7 @@ class GOFPID():
         """Check parameter perimeter."""
 
         if 'perimeter' not in self.post_filter.keys():
-            raise ValueError('Parameter post_filter has no key "perimeter".')
+            raise KeyError('Parameter post_filter has no key "perimeter".')
 
         if self.post_filter['perimeter'] is None:
             self.post_filter['perimeter'] = np.array(
@@ -308,7 +334,7 @@ class GOFPID():
         """Check parameter perspective."""
 
         if 'perspective' not in self.post_filter.keys():
-            raise ValueError('Parameter post_filter has no key "perspective".')
+            raise KeyError('Parameter post_filter has no key "perspective".')
 
         if self.post_filter['perspective'] is None:
             self.post_filter['perspective'] = np.array(
@@ -438,6 +464,10 @@ class GOFPID():
 
         # intrusion detection
         y = self._detect_blob()
+
+        # alarm enforcement according to alarm definition
+        y = self._maintain_alarm(y)
+
         return y
 
     def _calib_first_frame(self):
@@ -518,7 +548,8 @@ class GOFPID():
     def _track_blob(self, dist_max=100):  #TODO: in parameters ?
         """Track blobs.
 
-        This naive tracking uses only distance between centers.  #TODO: WIP
+        This naive tracking uses only (absolute!) distance between centers.
+        #TODO: WIP
         """
 
         n_blobs = len(self.blobs_)
@@ -571,6 +602,7 @@ class GOFPID():
             'presence': 1,
             'absence': 0,
             'filter': set(['presence', 'distance']),
+            'already_in_alarm': False,
         }
         return tracked_blob
 
@@ -655,19 +687,45 @@ class GOFPID():
                 tracked_blob['filter'].discard('perspective')
 
     def _detect_blob(self):
-        """Detect intrusion blob by blob."""
+        """Detect intrusion analyzing tracked blobs."""
+
+        blob_in_alarm = False
 
         if self.tracked_blobs_ is None:
-            return 0
+            return blob_in_alarm
 
-        y = 0
-        for blob in self.tracked_blobs_:
-            if blob['filter'] == set():  # no filter => intrusion detected
-                y = 1
+        # detection on tracked blobs
+        for tracked_blob in self.tracked_blobs_:
+            if tracked_blob['filter'] == set():
+                # no filter => intrusion detected
+                blob_in_alarm = True
+                if self.alarm_def['keep_alarm']:
+                    tracked_blob['already_in_alarm'] = True
+            elif tracked_blob['already_in_alarm']:
+                blob_in_alarm = True
+            else:
+                pass
 
-        if self.verbose and y == 1:
+        return blob_in_alarm
+
+    def _maintain_alarm(self, sys_in_alarm):
+        """Maintain alarm according to alarm definition."""
+
+        self._alarm_system['duration'] -= 1
+
+        if sys_in_alarm and not self._alarm_system['already_in_alarm']: # and self._alarm_system.duration <= 0:
+            # beginning of intrusion
+            self._alarm_system['duration'] = self.alarm_def['duration_min']
+
+        if not sys_in_alarm and self._alarm_system['duration'] >= 0:
+            sys_in_alarm = True
+
+        if self.verbose and sys_in_alarm and not self._alarm_system['already_in_alarm']:
             print("Intrusion detected")
-        return y
+
+        self._alarm_system['already_in_alarm'] = sys_in_alarm
+
+        return sys_in_alarm
 
     def display(self, X):
         """On screen display.
@@ -683,7 +741,7 @@ class GOFPID():
 
         for tracked_blob in self.tracked_blobs_:
 
-            if tracked_blob['filter'] == set():
+            if tracked_blob['filter'] == set() or tracked_blob['already_in_alarm']:
                 color = (0, 0, 255)
             elif 'perimeter' in tracked_blob['filter']:
                 color = (255, 0, 0)
