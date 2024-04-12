@@ -10,6 +10,7 @@ from pygofpid.helpers import (
     plot_squares,
     find_point,
     find_line,
+    find_contours,
     get_bottom,
     get_center,
     normalize_coords,
@@ -25,7 +26,7 @@ np.random.seed(17)
 @pytest.mark.parametrize("fun", [plot_lines, plot_rectangles, plot_squares])
 def test_plots(fun):
     """Test plots."""
-    X = np.ones((240, 320, 3), dtype=np.uint8)
+    X = np.ones((100, 150, 3), dtype=np.uint8)
     points = np.array([[10, 40], [20, 80], [80, 20], [85, 30]])
     thickness = np.array([5, 5])
     fun(X, points, thickness)
@@ -51,6 +52,12 @@ def test_find_line(coord, gt):
     points = [[10, 10], [10, 50], [50, 50], [50, 10]]
     thickness = [2, 2]
     assert find_line(coord, points, thickness) == gt
+
+
+def test_find_contours():
+    """Test find_contours."""
+    mask = np.random.randint(low=0, high=2, size=(64, 64), dtype=np.uint8)
+    find_contours(mask)
 
 
 def test_get_bottom():

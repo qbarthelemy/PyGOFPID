@@ -11,6 +11,7 @@ from .helpers import (
     get_center,
     find_point,
     find_line,
+    find_contours,
     normalize_coords,
     unnormalize_coords,
     cdist_euclidean,
@@ -476,15 +477,7 @@ class GOFPID():
         """Find blobs from foreground mask using contour retrieval."""
 
         # find blobs using contour retrieval
-        outs = cv.findContours(
-            self.foreground_mask_,
-            mode=cv.RETR_EXTERNAL,
-            method=cv.CHAIN_APPROX_NONE,
-        )
-        if cv.__version__ < '4.0.0':
-            _, contours, _ = outs
-        else:
-            contours, _ = outs
+        contours = find_contours(self.foreground_mask_)
 
         # filter contours with minimal area
         contours = [

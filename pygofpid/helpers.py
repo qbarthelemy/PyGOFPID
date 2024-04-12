@@ -122,6 +122,29 @@ def find_line(coord, points, thickness):
         return -1
 
 
+def find_contours(mask):
+    """Find contours in a binary mask.
+
+    Parameters
+    ----------
+    mask : ndarray of int, shape (n_height, n_width, n_color)
+        Binary mask.
+    """
+
+    outs = cv.findContours(
+        mask,
+        mode=cv.RETR_EXTERNAL,
+        method=cv.CHAIN_APPROX_NONE,
+    )
+
+    if cv.__version__ < '4.0.0':
+        _, contours, _ = outs
+    else:
+        contours, _ = outs
+
+    return contours
+
+
 def get_bottom(contour, dtype=np.int16):
     """Compute middle-bottom point of a contour."""
 
