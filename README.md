@@ -40,15 +40,16 @@ for testing video based PID.
 See [pyPID](https://gitlab.liris.cnrs.fr/dlohani/pypid) for a benchmark between
 PID systems on i-LIDS dataset, with results given for
 [edge-level evaluation after 1s](https://www.mdpi.com/1424-8220/22/9/3601)
-(precision, recall, F1-score):
+(precision - recall - F1-score):
 
-| Methods | View 1 | View 2 |
-| ------- | ------ | ------ |
-| YOLOv2 + SORT [[Nayak2019]](https://ieeexplore.ieee.org/document/9117960) | 0.62 0.52 0.57 | 0.99 0.47 0.64 |
-| 3DCAE + MZ [[Lohani2022]](https://ieeexplore.ieee.org/document/9897472) | 0.90 0.74 0.81 | 0.83 0.64 0.73 |
-| GOFPID v1.0.0 | 0.69 0.61 0.65 | 0.80 0.59 0.68 |
+| Methods | i-LIDS view 1 | i-LIDS view 2 |
+| ------- | ------------- | ------------- |
+| YOLOv2 + SORT [[Nayak2019]](https://ieeexplore.ieee.org/document/9117960) | 0.62 - 0.52 - 0.57 | 0.99 - 0.47 - 0.64 |
+| 3DCAE + MZ [[Lohani2022]](https://ieeexplore.ieee.org/document/9897472) | 0.90 - 0.74 - 0.81 | 0.83 - 0.64 - 0.73 |
+| LUSS-AE + MZ [[Lohani2023]](https://theses.hal.science/tel-04108165) | 0.91 - 0.78 - 0.84 | 0.85 - 0.70 - 0.77 |
+| GOFPID v1.0.0 | 0.69 - 0.61 - 0.65 | 0.80 - 0.59 - 0.68 |
 
-See `examples/dataset_ilids.py` for GOFPID configurations of i-LIDS views.
+See `examples/dataset_ilids.py` for GOFPID configuration of i-LIDS views.
 
 ## Installation
 
