@@ -20,11 +20,17 @@ post_filter = {
     'presence_min': 3,
     'distance_min': 0.25,
 }
+alarm_def = {
+    'keep_alarm': True,
+    'duration_min': 10,
+}
 
 
 def test_gofpid_errors():
     """Test GOFPID errors."""
-    gofpid = GOFPID(post_filter=post_filter).initialize()
+    gofpid = GOFPID(
+        post_filter=post_filter,
+    ).initialize()
 
     img1 = np.random.randint(0, high=255, size=(64, 64, 3), dtype=np.uint8)
     gofpid.detect(img1)
@@ -147,7 +153,7 @@ def test_gofpid_matmorph_errors():
 
 @pytest.mark.parametrize("anchor", ['center', 'bottom'])
 def test_gofpid_postfilter(anchor):
-    """Test postfilter parameters."""
+    """Test post_filter parameters."""
     gofpid = GOFPID(
         post_filter={
             'perimeter': perimeter,
@@ -238,3 +244,17 @@ def test_gofpid_postfilter_errors(post_filter):
     """Test post_filter errors."""
     with pytest.raises(ValueError):
         GOFPID(post_filter=post_filter).initialize()
+
+
+@pytest.mark.parametrize("keep_alarm", [True, False])
+def test_gofpid_alarmdef(keep_alarm):
+    """Test alarm_def parameters."""
+    gofpid = GOFPID(
+        alarm_def={
+            'keep_alarm': keep_alarm,
+            'duration_min': 3,
+        },
+    ).initialize()
+    for _ in range(n_reps):
+        img = np.random.randint(0, high=255, size=(64, 64), dtype=np.uint8)
+        gofpid.detect(img)
