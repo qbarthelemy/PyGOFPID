@@ -1,10 +1,10 @@
 """Helpers."""
 
-import numpy as np
 import cv2 as cv
+import numpy as np
 
 
-def change_extension(filename_input, ext_new='png'):
+def change_extension(filename_input, ext_new="png"):
     ext_old = filename_input.split('.')[-1]
     filename_output = filename_input.replace(ext_old, ext_new)
     return filename_output
@@ -15,7 +15,7 @@ def read_first_frame(video_filename):
 
     vidcap = cv.VideoCapture(video_filename)
     if not vidcap.isOpened():
-        raise ValueError('Unable to open video %s.' % video_filename)
+        raise ValueError("Unable to open video %s." % video_filename)
     _, frame = vidcap.read()
     vidcap.release()
     frame_filename = change_extension(video_filename)
@@ -137,7 +137,7 @@ def find_contours(mask):
         method=cv.CHAIN_APPROX_NONE,
     )
 
-    if cv.__version__ < '4.0.0':
+    if cv.__version__ < "4.0.0":
         _, contours, _ = outs
     else:
         contours, _ = outs
@@ -184,7 +184,7 @@ def unnormalize_coords(ncoords, shape, dtype=np.uint16):
 def cdist_euclidean(XA, XB):
     """NumPy implementation of SciPy's cdist.
 
-    Replace scipy.spatial.distance.cdist(XA, XB, 'euclidean').
+    Replace scipy.spatial.distance.cdist(XA, XB, "euclidean").
     """
     XA, XB = np.asarray(XA), np.asarray(XB)
     mA, mB = len(XA), len(XB)
@@ -225,9 +225,9 @@ class SimpleLinearRegression():
         """
 
         if len(x) != 2:
-            raise ValueError('Fit only two samples.')
+            raise ValueError("Fit only two samples.")
         if len(x) != len(y):
-            raise ValueError('Inputs must have the same size.')
+            raise ValueError("Inputs must have the same size.")
 
         self.coeff = (y[1] - y[0]) / (x[1] - x[0])
         self.intercept = y[0] - self.coeff * x[0]

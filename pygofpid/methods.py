@@ -1,7 +1,7 @@
 """Methods."""
 
-import numpy as np
 import cv2 as cv
+import numpy as np
 
 from .helpers import (
     read_first_frame,
@@ -698,6 +698,8 @@ class GOFPID():
 class FrameDifferencing():
     """Foreground detection by frame differencing.
 
+    F = abs(X_t - X_{t-1}) > threshold
+
     Parameters
     ----------
     threshold : float, default=5
@@ -722,15 +724,15 @@ class FrameDifferencing():
 
         Returns
         -------
-        X_new : ndarray
+        F : ndarray
             Foreground frame.
         """
 
         if self._X is None:
-            X_new = np.zeros_like(X)
+            F = np.zeros_like(X)
         else:
             diff = cv.absdiff(X, self._X)
-            _, X_new = cv.threshold(
+            _, F = cv.threshold(
                 diff,
                 self.threshold,
                 255,
@@ -738,7 +740,7 @@ class FrameDifferencing():
             )
 
         self._X = X
-        if X_new.ndim > 2:
-            X_new = np.mean(X_new, axis=-1, dtype=np.uint8, keepdims=False)
+        if F.ndim > 2:
+            F = np.mean(F, axis=-1, dtype=np.uint8, keepdims=False)
 
-        return X_new
+        return F
