@@ -150,7 +150,7 @@ def get_bottom(contour, dtype=np.int16):
 
     moments = cv.moments(contour)
     x = int(moments["m10"] / moments["m00"])
-    y = max(contour[..., 1])  # downward axis => bottom = max
+    y = np.max(contour[..., 1])  # downward axis => bottom = max
     return np.array([x, y], dtype=dtype)
 
 
