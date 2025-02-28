@@ -189,7 +189,7 @@ class GOFPID():
 
         if self.blur:
             if 'fun' not in self.blur.keys():
-                raise ValueError('Parameter blur has no key "fun".')
+                raise KeyError('Parameter blur has no key "fun".')
             if 'ksize' not in self.blur.keys():
                 self.blur['ksize'] = (3, 3)
             if 'borderType' not in self.blur.keys():
@@ -207,7 +207,7 @@ class GOFPID():
         if self.mat_morph:
             for d in self.mat_morph:
                 if 'fun' not in d.keys():
-                    raise ValueError('Parameter mat_morph has no key "fun".')
+                    raise KeyError('Parameter mat_morph has no key "fun".')
                 if 'kernel' not in d.keys():
                     d['kernel'] = cv.getStructuringElement(
                         cv.MORPH_RECT,
@@ -215,18 +215,16 @@ class GOFPID():
                     )
 
         if 'anchor' not in self.post_filter.keys():
-            raise ValueError('Parameter post_filter has no key "anchor".')
+            raise KeyError('Parameter post_filter has no key "anchor".')
         if self.post_filter['anchor'] not in ['bottom', 'center']:
             raise ValueError('Parameter anchor must be "bottom" or "center".')
         if 'perspective_coeff' not in self.post_filter.keys():
-            raise ValueError(
+            raise KeyError(
                 'Parameter post_filter has no key "perspective_coeff".')
         if 'presence_min' not in self.post_filter.keys():
-            raise ValueError(
-                'Parameter post_filter has no key "presence_min".')
+            raise KeyError('Parameter post_filter has no key "presence_min".')
         if 'distance_min' not in self.post_filter.keys():
-            raise ValueError(
-                'Parameter post_filter has no key "distance_min".')
+            raise KeyError('Parameter post_filter has no key "distance_min".')
         self._check_perimeter()
         self._check_perspective()
 
@@ -239,7 +237,7 @@ class GOFPID():
         """Check parameter perimeter."""
 
         if 'perimeter' not in self.post_filter.keys():
-            raise ValueError('Parameter post_filter has no key "perimeter".')
+            raise KeyError('Parameter post_filter has no key "perimeter".')
 
         if self.post_filter['perimeter'] is None:
             self.post_filter['perimeter'] = np.array(
@@ -309,7 +307,7 @@ class GOFPID():
         """Check parameter perspective."""
 
         if 'perspective' not in self.post_filter.keys():
-            raise ValueError('Parameter post_filter has no key "perspective".')
+            raise KeyError('Parameter post_filter has no key "perspective".')
 
         if self.post_filter['perspective'] is None:
             self.post_filter['perspective'] = np.array(
@@ -616,7 +614,7 @@ class GOFPID():
         if self.tracked_blobs_[i_tracked_blob]['absence'] >= absence_max:
             self.tracked_blobs_.pop(i_tracked_blob)
 
-    def _post_filter(self, perspective_coeff=0.75):
+    def _post_filter(self):
         """Post-filter pre-alarms with perimeter and perspective."""
 
         for tracked_blob in self.tracked_blobs_:

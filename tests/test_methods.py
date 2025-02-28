@@ -24,7 +24,9 @@ post_filter = {
 
 def test_gofpid_errors():
     """Test GOFPID errors."""
-    gofpid = GOFPID(post_filter=post_filter).initialize()
+    gofpid = GOFPID(
+        post_filter=post_filter,
+    ).initialize()
 
     img1 = np.random.randint(0, high=255, size=(64, 64, 3), dtype=np.uint8)
     gofpid.detect(img1)
@@ -78,7 +80,7 @@ def test_gofpid_blur(size, blur):
 
 def test_gofpid_blur_errors():
     """Test blur errors."""
-    with pytest.raises(ValueError):  # no 'fun' in parameters
+    with pytest.raises(KeyError):  # no 'fun' in parameters
         GOFPID(
             blur={'ksize': (3, 3)},
             post_filter=post_filter,
@@ -136,7 +138,7 @@ def test_gofpid_matmorph(size, mat_morph):
 
 def test_gofpid_matmorph_errors():
     """Test mat_morph errors."""
-    with pytest.raises(ValueError):  # no 'fun' in parameters
+    with pytest.raises(KeyError):  # no 'fun' in parameters
         GOFPID(
             mat_morph=[
                 {'kernel': cv.getStructuringElement(cv.MORPH_RECT, (5, 5))}
@@ -147,7 +149,7 @@ def test_gofpid_matmorph_errors():
 
 @pytest.mark.parametrize("anchor", ['center', 'bottom'])
 def test_gofpid_postfilter(anchor):
-    """Test postfilter parameters."""
+    """Test post_filter parameters."""
     gofpid = GOFPID(
         post_filter={
             'perimeter': perimeter,
@@ -236,5 +238,7 @@ def test_gofpid_postfilter(anchor):
 )
 def test_gofpid_postfilter_errors(post_filter):
     """Test post_filter errors."""
-    with pytest.raises(ValueError):
-        GOFPID(post_filter=post_filter).initialize()
+    with pytest.raises((KeyError, ValueError)):
+        GOFPID(
+            post_filter=post_filter,
+        ).initialize()
