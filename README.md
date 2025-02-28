@@ -62,7 +62,7 @@ pip install git+https://github.com/qbarthelemy/PyGOFPID
 
 To install PyGOFPID in editable / development mode, in the folder:
 ```shell
-pip install -e .
+python setup.py develop
 ```
 
 ## Testing
