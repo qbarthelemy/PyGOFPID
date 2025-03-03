@@ -509,7 +509,8 @@ class GOFPID():
     def _track_blob(self, dist_max=100):  #TODO: in parameters ?
         """Track blobs.
 
-        This naive tracking uses only distance between centers.  #TODO: WIP
+        This naive tracking uses only (absolute!) distance between centers.
+        #TODO: WIP
         """
 
         n_blobs = len(self.blobs_)

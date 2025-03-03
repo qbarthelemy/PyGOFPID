@@ -3,10 +3,11 @@
 Perimeter intrusion detection on a single video.
 ===============================================================================
 
-1 - Download video here
+1 - Download video 'people-walking' here
 https://pythonprogramming.net/static/images/opencv/people-walking.mp4;
 2 - Put it in the same folder;
-3 - Run the script.
+3 - Run the script;
+4 - Press the "C" key to valid configuration pages.
 """
 
 import cv2 as cv
@@ -35,7 +36,7 @@ gofpid = GOFPID(
         'distance_min': 0.25,
         'config_video_filename': video_filename,
     },
-    verbose=True
+    verbose=True,
 ).initialize()
 
 

@@ -129,6 +129,11 @@ def find_contours(mask):
     ----------
     mask : ndarray of int, shape (n_height, n_width, n_color)
         Binary mask.
+
+    Returns
+    -------
+    contours : tuple
+        Contours found in mask.
     """
 
     outs = cv.findContours(
@@ -241,7 +246,7 @@ class SimpleLinearRegression():
 
         Parameters
         ----------
-        x : ndarray, shape (n,)
+        x : array-like, shape (n,)
             Input values.
 
         Returns
