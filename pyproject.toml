@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pygofpid"
-version = "1.0.2"
+version = "1.0.3"
 description = "PyGOFPID is a Python package for good old fashioned perimeter intrusion detection systems"
 authors = ["Quentin Barthelemy"]
 license = "BSD-3-Clause"

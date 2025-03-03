@@ -2,7 +2,7 @@ from setuptools import find_packages, setup
 
 setup(
     name='pygofpid',
-    version='1.0.2',
+    version='1.0.3',
     description='Python package for good old fashioned perimeter intrusion detection systems for video protection',
     long_description='PyGOFPID is a Python package for good old fashioned perimeter intrusion detection systems for video protection',
     author='Quentin Barthelemy',
