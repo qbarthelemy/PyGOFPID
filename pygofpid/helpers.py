@@ -197,7 +197,7 @@ def cdist_euclidean(XA, XB):
     for i in range(mA):
         for j in range(mB):
             dm[i, j] = np.linalg.norm(XA[i] - XB[j])
-    return dm
+    return np.atleast_2d(dm)
 
 
 class SimpleLinearRegression():

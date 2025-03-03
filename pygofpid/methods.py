@@ -442,14 +442,14 @@ class GOFPID():
     def _calib_first_frame(self):
         """Finish configurations using first frame dimensions."""
 
-        # perimeter
+        # calibrate perimeter
         self.post_filter['perimeter'] = unnormalize_coords(
             self.post_filter['perimeter'],
             self.input_shape_,
             dtype=np.int32,
         )
 
-        # perspective  # Q: is this unnormalization really necessary?
+        # calibrate perspective
         self.post_filter['perspective'] = unnormalize_coords(
             self.post_filter['perspective'],
             self.input_shape_,
@@ -458,18 +458,46 @@ class GOFPID():
         self._calib_perspective()
 
     def _calib_perspective(self):
-        """Calibrate perspective: area as a function of bottom point."""
+        """Calibrate perspective:
+        area, height and width as a function of bottom point.
+        """
 
         points = self.post_filter['perspective']
         bottoms = [
             np.max([points[1][1], points[0][1]]),
             np.max([points[3][1], points[2][1]]),
         ]
+
+        # calibrate area as a function of bottom point
         areas = [
             abs((points[1][1] - points[0][1]) * (points[1][0] - points[0][0])),
             abs((points[3][1] - points[2][1]) * (points[3][0] - points[2][0])),
         ]
-        self._perspective = SimpleLinearRegression().fit(bottoms, areas)
+        slr = SimpleLinearRegression().fit(bottoms, areas)
+        y = np.arange(0, self.input_shape_[0], 1)
+        self._perspective = {'area': slr.predict_clip(y, 0)}
+
+        # calibrate height as a function of bottom point
+        heights = [
+            abs(points[1][1] - points[0][1]),
+            abs(points[3][1] - points[2][1]),
+        ]
+        slr.fit(bottoms, heights)
+        self._perspective['height'] = slr.predict_clip(y, 0)
+
+        # calibrate width as a function of bottom point
+        widths = [
+            abs(points[1][0] - points[0][0]),
+            abs(points[3][0] - points[2][0]),
+        ]
+        slr.fit(bottoms, widths)
+        self._perspective['width'] = slr.predict_clip(y, 0)
+
+    def _predict_perspective(self, key, y):
+        """Predict perspective."""
+
+        y = np.clip(y, a_min=0, a_max=self.input_shape_[0] - 1)
+        return self._perspective.get(key)[y]
 
     def _find_blob(self, area_min=100):  #TODO: in parameters ?
         """Find blobs from foreground mask using contour retrieval."""
@@ -532,9 +560,7 @@ class GOFPID():
         # pairwise distances between blob centers
         blobs_cent = [blob['center'] for blob in self.blobs_]
         tracked_blobs_cent = [blob['center'] for blob in self.tracked_blobs_]
-        dist = np.atleast_2d(
-            cdist_euclidean(blobs_cent, tracked_blobs_cent)
-        )
+        dist = cdist_euclidean(blobs_cent, tracked_blobs_cent)
 
         for i in range(n_blobs):
             j_min = np.argmin(dist[i])
@@ -580,12 +606,12 @@ class GOFPID():
         tracked_blob['presence'] += 1
         if tracked_blob['presence'] >= self.post_filter['presence_min']:
             tracked_blob['filter'].discard('presence')
-        if self._get_distance(i_tracked_blob) >= self.post_filter['distance_min']:
+        if self._compute_distance(i_tracked_blob) >= self.post_filter['distance_min']:
             tracked_blob['filter'].discard('distance')
         #else:
         #    tracked_blob['filter'].add('distance') # Q: seems dangerous if circular mouvement?
 
-    def _get_distance(self, i_tracked_blob):
+    def _compute_distance(self, i_tracked_blob):
         """Compute relative distance between first and last centers."""
 
         # distance between first and last centers
@@ -595,11 +621,10 @@ class GOFPID():
         )
 
         # perspective size at the position of tracked blob
-        area_min = self._perspective.predict(
-            self.tracked_blobs_[i_tracked_blob]['bottom'][1]
+        area_min = self._predict_perspective(
+            'area',
+            self.tracked_blobs_[i_tracked_blob]['bottom'][1],
         )
-        if area_min <= 0:
-            return 0
 
         # relative distance: distance normalized by perspective size
         # => filtering distance is a function of depth
@@ -636,8 +661,9 @@ class GOFPID():
                 tracked_blob['contour']
             )
             area = width * height
-            area_min = self._perspective.predict(
-                tracked_blob['bottom'][1]
+            area_min = self._predict_perspective(
+                'area',
+                tracked_blob['bottom'][1],
             )
             if area <= area_min * self.post_filter['perspective_coeff']:
                 # object is smaller than minimal perspective => filtered
@@ -661,7 +687,7 @@ class GOFPID():
             print("Intrusion detected")
         return y
 
-    def display(self, X):
+    def display(self, X, display_perspective=False):
         """On screen display.
 
         Parameters
@@ -669,6 +695,8 @@ class GOFPID():
         X : ndarray of int, shape (n_height, n_width) or \
                 (n_height, n_width, n_channel)
             Input frame.
+        display_perspective : bool, default=False
+            Flag to display the perspective of tracked blobs.
         """
 
         cv.drawContours(X, [self.post_filter['perimeter']], 0, (25, 200, 200))
@@ -689,6 +717,18 @@ class GOFPID():
 
             cv.drawContours(X, [tracked_blob['contour']], 0, color)
             cv.circle(X, tracked_blob['anchor'], 4, color, -1)
+
+            if display_perspective:
+                self._display_perspective(X, tracked_blob['contour'], color)
+
+    def _display_perspective(self, X, contour, color):
+        """Display perspective."""
+        bottom = get_bottom(contour, dtype=np.int16)
+        height = np.int32(self._predict_perspective('height', bottom[1]))
+        width = np.int32(self._predict_perspective('width', bottom[1]))
+        rect1 = [bottom[0] - width//2, bottom[1]]
+        rect2 = [bottom[0] + width//2, bottom[1] - height]
+        cv.rectangle(X, rect1, rect2, color, 2)
 
 
 ###############################################################################
