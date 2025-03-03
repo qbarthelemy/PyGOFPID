@@ -275,6 +275,7 @@ def test_gofpid_alarmdef(keep_alarm):
             'duration_min': 3,
         },
     ).initialize()
+
     for _ in range(n_reps):
         img = np.random.randint(0, high=255, size=(64, 64), dtype=np.uint8)
         gofpid.detect(img)
