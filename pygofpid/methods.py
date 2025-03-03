@@ -453,7 +453,7 @@ class GOFPID():
         self.post_filter['perspective'] = unnormalize_coords(
             self.post_filter['perspective'],
             self.input_shape_,
-            dtype=np.int32,
+            dtype=np.float64,
         )
         self._calib_perspective()
 
@@ -462,8 +462,8 @@ class GOFPID():
 
         points = self.post_filter['perspective']
         bottoms = [
-            max(points[1][1], points[0][1]),
-            max(points[3][1], points[2][1]),
+            np.max([points[1][1], points[0][1]]),
+            np.max([points[3][1], points[2][1]]),
         ]
         areas = [
             abs((points[1][1] - points[0][1]) * (points[1][0] - points[0][0])),
