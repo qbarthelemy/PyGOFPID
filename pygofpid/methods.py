@@ -625,6 +625,8 @@ class GOFPID():
             'area',
             self.tracked_blobs_[i_tracked_blob]['bottom'][1],
         )
+        if area_min <= 0:
+            return 0
 
         # relative distance: distance normalized by perspective size
         # => filtering distance is a function of depth
