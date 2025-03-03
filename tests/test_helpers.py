@@ -63,18 +63,20 @@ def test_find_contours():
     find_contours(mask)
 
 
-def test_get_bottom():
+@pytest.mark.parametrize("dtype", [np.int16, np.uint16, np.int32, np.uint32])
+def test_get_bottom(dtype):
     """Test get_bottom."""
     contour = np.array([[0, 0], [0, 10], [10, 10], [10, 0]], dtype=np.int32)
-    bottom = get_bottom(contour)
+    bottom = get_bottom(contour, dtype=dtype)
     assert bottom[0] == 5   # middle
     assert bottom[1] == 10  # bottom
 
 
-def test_get_center():
+@pytest.mark.parametrize("dtype", [np.int16, np.uint16, np.int32, np.uint32])
+def test_get_center(dtype):
     """Test get_center."""
     contour = np.array([[0, 0], [0, 10], [10, 10], [10, 0]], dtype=np.int32)
-    center = get_center(contour)
+    center = get_center(contour, dtype=dtype)
     assert center[0] == 5
     assert center[1] == 5
 
@@ -114,6 +116,8 @@ def test_simplelinearregression():
     x, y = [3, 4], [38, 37]
     slr.fit(x, y)
     assert slr.predict([5]) == 36.0
+    assert slr.predict_clip([6], 20, 30) == 30
+    assert slr.predict_clip([7], 40, 50) == 40
 
 
 def test_simplelinearregression_errors():

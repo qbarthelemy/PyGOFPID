@@ -256,3 +256,23 @@ class SimpleLinearRegression():
         """
 
         return self.coeff * np.asarray(x) + self.intercept
+
+    def predict_clip(self, x, a_min=None, a_max=None):
+        """Predict and clip using the linear model.
+
+        Predict and clip value.
+
+        Parameters
+        ----------
+        x : array-like, shape (n,)
+            Input values.
+        a_min, a_max : float or None
+            Minimum and maximum value.
+
+        Returns
+        -------
+        y : ndarray, shape (n,)
+            Predicted values.
+        """
+
+        return np.clip(self.predict(x), a_min=a_min, a_max=a_max)
