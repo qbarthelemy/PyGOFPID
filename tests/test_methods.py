@@ -1,8 +1,9 @@
 """Tests for module gofpid."""
 
 import pytest
-import numpy as np
 import cv2 as cv
+import numpy as np
+
 from pygofpid.methods import GOFPID
 
 np.random.seed(17)
@@ -10,7 +11,7 @@ np.random.seed(17)
 
 n_reps = 5
 
-perimeter = np.array([[0, 0], [0, 1], [1, 1], [1, 0]], dtype=np.float64)
+perimeter = np.array([[0, 0], [0, 1], [1, 1], [1, 0]])
 perspective = np.array([[0.1, 0.5], [0.3, 0.9], [0.8, 0.1], [0.9, 0.25]])
 post_filter = {
     'perimeter': perimeter,
@@ -22,10 +23,13 @@ post_filter = {
 }
 
 
+###############################################################################
+
+
 def test_gofpid_errors():
     """Test GOFPID errors."""
     gofpid = GOFPID(
-        post_filter=post_filter,
+        post_filter=post_filter.copy(),
     ).initialize()
 
     img1 = np.random.randint(0, high=255, size=(64, 64, 3), dtype=np.uint8)
@@ -42,8 +46,9 @@ def test_gofpid_convert(convert):
     """Test convert parameter."""
     gofpid = GOFPID(
         convert=convert,
-        post_filter=post_filter,
+        post_filter=post_filter.copy(),
     ).initialize()
+
     img = np.random.randint(0, high=255, size=(64, 64, 3), dtype=np.uint8)
     gofpid.detect(img)
 
@@ -72,8 +77,9 @@ def test_gofpid_blur(size, blur):
     """Test blur parameters."""
     gofpid = GOFPID(
         blur=blur,
-        post_filter=post_filter,
+        post_filter=post_filter.copy(),
     ).initialize()
+
     img = np.random.randint(0, high=255, size=size, dtype=np.uint8)
     gofpid.detect(img)
 
@@ -83,7 +89,7 @@ def test_gofpid_blur_errors():
     with pytest.raises(KeyError):  # no 'fun' in parameters
         GOFPID(
             blur={'ksize': (3, 3)},
-            post_filter=post_filter,
+            post_filter=post_filter.copy(),
         ).initialize()
 
 
@@ -93,8 +99,9 @@ def test_gofpid_frgdetect(size, frg_detect):
     """Test frg_detect parameters."""
     gofpid = GOFPID(
         frg_detect=frg_detect,
-        post_filter=post_filter,
+        post_filter=post_filter.copy(),
     ).initialize()
+
     for _ in range(n_reps):
         img = np.random.randint(0, high=255, size=size, dtype=np.uint8)
         gofpid.detect(img)
@@ -105,7 +112,7 @@ def test_gofpid_frgdetect_errors():
     with pytest.raises(ValueError):  # unknown method
         GOFPID(
             frg_detect='blabla',
-            post_filter=post_filter,
+            post_filter=post_filter.copy(),
         ).initialize()
 
 
@@ -130,8 +137,9 @@ def test_gofpid_matmorph(size, mat_morph):
     """Test mat_morph parameters."""
     gofpid = GOFPID(
         mat_morph=mat_morph,
-        post_filter=post_filter,
+        post_filter=post_filter.copy(),
     ).initialize()
+
     img = np.random.randint(0, high=255, size=size, dtype=np.uint8)
     gofpid.detect(img)
 
@@ -143,7 +151,7 @@ def test_gofpid_matmorph_errors():
             mat_morph=[
                 {'kernel': cv.getStructuringElement(cv.MORPH_RECT, (5, 5))}
             ],
-            post_filter=post_filter,
+            post_filter=post_filter.copy(),
         ).initialize()
 
 
@@ -160,6 +168,7 @@ def test_gofpid_postfilter(anchor):
             'distance_min': 0.25,
         },
     ).initialize()
+
     for _ in range(n_reps):
         img = np.random.randint(0, high=255, size=(64, 64), dtype=np.uint8)
         gofpid.detect(img)
@@ -240,5 +249,5 @@ def test_gofpid_postfilter_errors(post_filter):
     """Test post_filter errors."""
     with pytest.raises((KeyError, ValueError)):
         GOFPID(
-            post_filter=post_filter,
+            post_filter=post_filter.copy(),
         ).initialize()

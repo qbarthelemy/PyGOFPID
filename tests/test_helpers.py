@@ -23,6 +23,9 @@ from pygofpid.helpers import (
 np.random.seed(17)
 
 
+###############################################################################
+
+
 @pytest.mark.parametrize("fun", [plot_lines, plot_rectangles, plot_squares])
 def test_plots(fun):
     """Test plots."""
