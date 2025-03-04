@@ -21,6 +21,10 @@ post_filter = {
     'presence_min': 3,
     'distance_min': 0.25,
 }
+alarm_def = {
+    'keep_alarm': True,
+    'duration_min': 10,
+}
 
 
 ###############################################################################
@@ -260,3 +264,18 @@ def test_gofpid_postfilter_errors(post_filter):
         GOFPID(
             post_filter=post_filter.copy(),
         ).initialize()
+
+
+@pytest.mark.parametrize("keep_alarm", [True, False])
+def test_gofpid_alarmdef(keep_alarm):
+    """Test alarm_def parameters."""
+    gofpid = GOFPID(
+        alarm_def={
+            'keep_alarm': keep_alarm,
+            'duration_min': 3,
+        },
+    ).initialize()
+
+    for _ in range(n_reps):
+        img = np.random.randint(0, high=255, size=(64, 64), dtype=np.uint8)
+        gofpid.detect(img)
