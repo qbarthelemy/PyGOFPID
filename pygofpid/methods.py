@@ -65,12 +65,13 @@ class GOFPID():
         'cv.dilate' for dilation [Dltn]_.
         If None, no processing.
 
-    tracking : dict, default={'factor': 1.5}
+    tracking : dict, default={'factor': 1.5, 'absence_max': 10}
         Dictionary containing parameters for tracking:
 
         - factor: multiplicative factor of the height of the perspective,
           defining the major radius of the ellipse of the tracking space,
           defining the maximum displacement between two successive frames.
+        - absence_max: number of frames of absence before destroying object.
 
     post_filter : dict, default={ \
             'perimeter': None, \
@@ -181,7 +182,10 @@ class GOFPID():
                 'kernel': cv.getStructuringElement(cv.MORPH_RECT, (5, 5)),
             }
         ],
-        tracking={'factor': 1.5},
+        tracking={
+            'factor': 1.5,
+            'absence_max': 10,
+        },
         post_filter={
             'perimeter': None,
             'anchor': 'bottom',
@@ -243,8 +247,8 @@ class GOFPID():
 
         if 'factor' not in self.tracking.keys():
             raise KeyError('Parameter tracking has no key "factor".')
-        if self.tracking['factor'] <= 0:
-            raise ValueError('Parameter factor must be positive.')
+        if 'absence_max' not in self.tracking.keys():
+            raise KeyError('Parameter tracking has no key "absence_max".')
 
         if 'anchor' not in self.post_filter.keys():
             raise KeyError('Parameter post_filter has no key "anchor".')
@@ -586,28 +590,29 @@ class GOFPID():
         #TODO: compute similarities using features extracted on contours.
         """
 
-        n_blobs = len(self.blobs_)
+        # initialize tracked blobs
         if self.tracked_blobs_ is None:
             self.tracked_blobs_ = []
+
+        n_tracked_blobs = len(self.tracked_blobs_)
+        n_blobs = len(self.blobs_)
+
+        if n_tracked_blobs == 0:
             for i in range(n_blobs):
                 self.tracked_blobs_.append(self._create_tracked_blob(i))
             return
-
-        n_tracked_blobs = len(self.tracked_blobs_)
         if n_blobs == 0:
-            for i in range(n_tracked_blobs - 1, 0, -1):
+            for i in range(n_tracked_blobs - 1, -1, -1):
                 self._update_unpaired_tracked_blob(i)
             return
 
-        if n_tracked_blobs == 0:
-            return
-
-        # pairwise distances between blob centers
+        # compute distances between centers of blobs
         dist = np.zeros((n_blobs, n_tracked_blobs))
         for i in range(n_blobs):
             for j in range(n_tracked_blobs):
                 dist[i, j] = self._compute_tracking_distance(j, i)
 
+        # find tracked blob corresponding to each instantaneous blob
         for i in range(n_blobs):
             #TODO: use similarities to find the optimal blob
             j_min = np.argmin(dist[i])
@@ -617,7 +622,8 @@ class GOFPID():
             else:
                 self.tracked_blobs_.append(self._create_tracked_blob(i))
 
-        for j in range(n_tracked_blobs - 1, 0, -1):
+        # process unpaired tracked blobs
+        for j in range(n_tracked_blobs - 1, -1, -1):
             if np.all(dist[:, j] >= 0):  # no pair found
                 self._update_unpaired_tracked_blob(j)
 
@@ -634,7 +640,7 @@ class GOFPID():
             'center_first': blob['center'],
             'presence': 1,
             'absence': 0,
-            'filter': set(['presence', 'distance']),
+            'filtered': set(['presence', 'distance']),
             'already_in_alarm': False,
         }
         return tracked_blob
@@ -682,12 +688,13 @@ class GOFPID():
         tracked_blob['center'] = blob['center']
         tracked_blob['absence'] = 0
         tracked_blob['presence'] += 1
+
         if tracked_blob['presence'] >= self.post_filter['presence_min']:
-            tracked_blob['filter'].discard('presence')
+            tracked_blob['filtered'].discard('presence')
         if self._compute_total_distance(i_tracked_blob) >= self.post_filter['distance_min']:
-            tracked_blob['filter'].discard('distance')
+            tracked_blob['filtered'].discard('distance')
         #else:
-        #    tracked_blob['filter'].add('distance') # Q: seems dangerous if circular mouvement?
+        #    tracked_blob['filtered'].add('distance') # Q: seems dangerous if circular mouvement?
 
     def _compute_total_distance(self, i_tracked_blob):
         """Compute total distance between centers of first and last positions."""
@@ -711,13 +718,14 @@ class GOFPID():
         dist_rel = dist / np.sqrt(area_min)
         return dist_rel
 
-    def _update_unpaired_tracked_blob(self, i_tracked_blob, absence_max=3):  #TODO: in parameters ?
+    def _update_unpaired_tracked_blob(self, i_tracked_blob):
         """Update an unpaired tracked blob."""
 
         self.tracked_blobs_[i_tracked_blob]['presence'] = 0
-        self.tracked_blobs_[i_tracked_blob]['filter'].add('presence')
+        self.tracked_blobs_[i_tracked_blob]['filtered'].add('presence')
         self.tracked_blobs_[i_tracked_blob]['absence'] += 1
-        if self.tracked_blobs_[i_tracked_blob]['absence'] >= absence_max:
+
+        if self.tracked_blobs_[i_tracked_blob]['absence'] >= self.tracking['absence_max']:
             self.tracked_blobs_.pop(i_tracked_blob)
 
     def _post_filter(self):
@@ -731,10 +739,10 @@ class GOFPID():
                 False,
             ) < 0:
                 # object not in perimeter => filtered
-                tracked_blob['filter'].add('perimeter')
+                tracked_blob['filtered'].add('perimeter')
             else:
                 # object in perimeter
-                tracked_blob['filter'].discard('perimeter')
+                tracked_blob['filtered'].discard('perimeter')
 
             # filtering by perspective
             _, _, width, height = cv.boundingRect(
@@ -747,10 +755,10 @@ class GOFPID():
             )
             if area <= area_min * self.post_filter['perspective_coeff']:
                 # object is smaller than minimal perspective => filtered
-                tracked_blob['filter'].add('perspective')
+                tracked_blob['filtered'].add('perspective')
             else:
                 # object of interest
-                tracked_blob['filter'].discard('perspective')
+                tracked_blob['filtered'].discard('perspective')
 
     def _detect_blob(self):
         """Detect intrusion analyzing tracked blobs."""
@@ -762,7 +770,7 @@ class GOFPID():
 
         # detection on tracked blobs
         for tracked_blob in self.tracked_blobs_:
-            if tracked_blob['filter'] == set():
+            if tracked_blob['filtered'] == set():
                 # no filter => intrusion detected
                 blob_in_alarm = True
                 if self.alarm_def['keep_alarm']:
@@ -811,14 +819,14 @@ class GOFPID():
 
         for tracked_blob in self.tracked_blobs_:
 
-            if tracked_blob['filter'] == set() or tracked_blob['already_in_alarm']:
+            if tracked_blob['filtered'] == set() or tracked_blob['already_in_alarm']:
                 color = (0, 0, 255)
-            elif 'perimeter' in tracked_blob['filter']:
+            elif 'perimeter' in tracked_blob['filtered']:
                 color = (255, 0, 0)
-            elif 'perspective' in tracked_blob['filter']:
+            elif 'perspective' in tracked_blob['filtered']:
                 color = (25, 200, 200)
-            elif 'presence' in tracked_blob['filter'] \
-                    or 'distance' in tracked_blob['filter']:
+            elif 'presence' in tracked_blob['filtered'] \
+                    or 'distance' in tracked_blob['filtered']:
                 color = (0, 255, 0)
             else:
                 raise ValueError('Unknown filtering type')
