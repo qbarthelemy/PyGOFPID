@@ -46,7 +46,7 @@ while True:
     if frame is None:
         break
 
-    y = gofpid.detect(frame)
+    gofpid.detect(frame)
     gofpid.display(frame)
     cv.imshow('Frame', frame)
 

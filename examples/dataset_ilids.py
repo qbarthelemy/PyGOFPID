@@ -15,6 +15,9 @@ from pygofpid.methods import GOFPID
 
 ###############################################################################
 
+# display video during analysis
+display = False
+
 # i-LIDS dataset path
 data_path = r'//TODO/2006_ILIDS/'
 
@@ -42,6 +45,7 @@ video_names = [
 
 def get_gofpid(view):
 
+    # Intrusion detection config by view
     if view == '1':
         perimeter = np.array([
             [1.0       , 0.1145833 ],
@@ -57,7 +61,7 @@ def get_gofpid(view):
             [0.68333333, 0.20833333],
             [0.72777778, 0.34548611]
         ])
-    elif view == '1':
+    elif view == '2':
         perimeter = np.array([
             [0.98611111, 0.69791667],
             [0.62777778, 0.35590278],
@@ -75,7 +79,7 @@ def get_gofpid(view):
             [0.275     , 0.19965278]
         ])
     else:
-        raise ValueError('Unknown view.')
+        raise ValueError(f'Unknown view {view}.')
 
     # Intrusion detection config on training videos
     config_frame_filename = (
@@ -85,7 +89,6 @@ def get_gofpid(view):
 
     gofpid = GOFPID(
         post_filter={
-            #'display_config': True,
             'perimeter': perimeter,
             'anchor': 'bottom',
             'perspective': perspective,
@@ -94,7 +97,7 @@ def get_gofpid(view):
             'distance_min': 0.25,
             'config_frame': config_frame,
         },
-        tracking={'factor': 2.0},
+        tracking={'factor': 1.5},
         alarm_def={
             'keep_alarm': True,
             'duration_min': 15,
@@ -110,6 +113,8 @@ def get_gofpid(view):
 # loop on testing videos
 for video_name in video_names:
 
+    print(video_name)
+
     video_filename = data_path + '/Disk_2-Testing/video/' + video_name + '.mov'
     vidcap = cv.VideoCapture(video_filename)
     if not vidcap.isOpened():
@@ -118,12 +123,22 @@ for video_name in video_names:
 
     gofpid = get_gofpid(video_name[5])
 
+
     while True:
         _, frame = vidcap.read()
         if frame is None:
             break
-        y = gofpid.detect(frame)
 
-    #TODO: compute evaluation
+        detection = gofpid.detect(frame)
+
+        if display:
+            gofpid.display(frame)
+            cv.imshow('Frame', frame)
+            if cv.waitKey(1) & 0xFF == ord('c'):
+                vidcap.release()
+                cv.destroyAllWindows()
+                break
+
+    #TODO: compute evaluation using detection value
 
 ###############################################################################
