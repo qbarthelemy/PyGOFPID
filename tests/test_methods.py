@@ -12,7 +12,7 @@ np.random.seed(17)
 n_reps = 5
 
 perimeter = np.array([[0, 0], [0, 1], [1, 1], [1, 0]])
-perspective = np.array([[0.1, 0.5], [0.3, 0.9], [0.8, 0.1], [0.9, 0.25]])
+perspective = np.array([[0.6, 0.5], [0.5, 0.8], [0.7, 0.2], [0.7, 0.3]])
 post_filter = {
     'perimeter': perimeter,
     'anchor': 'center',
@@ -151,6 +151,15 @@ def test_gofpid_matmorph_errors():
             mat_morph=[
                 {'kernel': cv.getStructuringElement(cv.MORPH_RECT, (5, 5))}
             ],
+            post_filter=post_filter.copy(),
+        ).initialize()
+
+
+def test_gofpid_tracking_errors():
+    """Test tracking errors."""
+    with pytest.raises(KeyError):  # no 'factor' in parameters
+        GOFPID(
+            tracking={'blabla': 42},
             post_filter=post_filter.copy(),
         ).initialize()
 

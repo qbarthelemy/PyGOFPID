@@ -14,7 +14,6 @@ from .helpers import (
     find_contours,
     normalize_coords,
     unnormalize_coords,
-    cdist_euclidean,
     SimpleLinearRegression,
 )
 
@@ -66,6 +65,13 @@ class GOFPID():
         'cv.dilate' for dilation [Dltn]_.
         If None, no processing.
 
+    tracking : dict, default={'factor': 1.5}
+        Dictionary containing parameters for tracking:
+
+        - factor: multiplicative factor of the height of the perspective,
+          defining the major radius of the ellipse of the tracking space,
+          defining the maximum displacement between two successive frames.
+
     post_filter : dict, default={ \
             'perimeter': None, \
             'anchor_point': 'bottom', \
@@ -73,7 +79,7 @@ class GOFPID():
             'perspective_coeff': 0.5, \
             'presence_min': 3, \
             'distance_min': 0.25}
-        Dictionary containing parameters to post-filter detections:
+        Dictionary containing parameters for post-filter detections:
 
         - perimeter: None, or list of points in normalized coordinates.
           If None, perimeter is the whole frame.
@@ -161,6 +167,7 @@ class GOFPID():
                 'kernel': cv.getStructuringElement(cv.MORPH_RECT, (5, 5)),
             }
         ],
+        tracking={'factor': 1.5},
         post_filter={
             'perimeter': None,
             'anchor': 'bottom',
@@ -175,6 +182,7 @@ class GOFPID():
         self.blur = blur
         self.frg_detect = frg_detect
         self.mat_morph = mat_morph
+        self.tracking = tracking
         self.post_filter = post_filter
         self.verbose = verbose
 
@@ -213,6 +221,11 @@ class GOFPID():
                         cv.MORPH_RECT,
                         (5, 5),
                     )
+
+        if 'factor' not in self.tracking.keys():
+            raise KeyError('Parameter tracking has no key "factor".')
+        if self.tracking['factor'] <= 0:
+            raise ValueError('Parameter factor must be positive.')
 
         if 'anchor' not in self.post_filter.keys():
             raise KeyError('Parameter post_filter has no key "anchor".')
@@ -534,11 +547,11 @@ class GOFPID():
         }
         return blob
 
-    def _track_blob(self, dist_max=100):  #TODO: in parameters ?
+    def _track_blob(self):
         """Track blobs.
 
-        This naive tracking uses only (absolute!) distance between centers.
-        #TODO: WIP
+        Current tracking uses only distance between centers.
+        #TODO: compute similarities using features extracted on contours.
         """
 
         n_blobs = len(self.blobs_)
@@ -558,14 +571,15 @@ class GOFPID():
             return
 
         # pairwise distances between blob centers
-        blobs_cent = [blob['center'] for blob in self.blobs_]
-        tracked_blobs_cent = [blob['center'] for blob in self.tracked_blobs_]
-        dist = cdist_euclidean(blobs_cent, tracked_blobs_cent)
+        dist = np.zeros((n_blobs, n_tracked_blobs))
+        for i in range(n_blobs):
+            for j in range(n_tracked_blobs):
+                dist[i, j] = self._compute_tracking_distance(j, i)
 
         for i in range(n_blobs):
+            #TODO: use similarities to find the optimal blob
             j_min = np.argmin(dist[i])
-            #TODO: use features extracted on contours to pair blobs
-            if dist[i, j_min] < dist_max:  # pair found
+            if dist[i, j_min] <= 1:  # pair found
                 dist[i, j_min] = -1  # to mark that pair has been found
                 self._update_paired_tracked_blob(j_min, i)
             else:
@@ -592,6 +606,37 @@ class GOFPID():
         }
         return tracked_blob
 
+    def _compute_tracking_distance(self, i_tracked_blob, i_blob):
+        """Compute tracking distance.
+
+        Compute the tracking distance between a tracked blob (tb) and an
+        instantaneous blob (ib).
+        The instantaneous blob belongs to the tracking space if its distance to
+        the ellipse is inferior to 1:
+        dist = (x_ib - x_tb)^2 / r_maj^2 + (y_ib - y_tb)^2 / r_min^2 <= 1
+        """
+
+        tracked_blob_bottom = self.tracked_blobs_[i_tracked_blob]['bottom']
+        radius_maj, radius_min = self._compute_tracking_space(tracked_blob_bottom)
+
+        tracked_blob_center = self.tracked_blobs_[i_tracked_blob]['center']
+        blob_center = self.blobs_[i_blob]['center']
+
+        if radius_maj <= 0 or radius_min <= 0:
+            return 0
+
+        dist = (blob_center[0] - tracked_blob_center[0])**2 / radius_maj**2 \
+            + (blob_center[1] - tracked_blob_center[1])**2 / radius_min**2
+        return dist
+
+    def _compute_tracking_space(self, bottom):
+        """Compute major and minor radii of the ellipse of tracking space."""
+
+        height_min = self._predict_perspective('height', bottom[1])
+        radius_major = np.int32(height_min * self.tracking['factor'])
+        radius_minor = np.int32(radius_major / 2)
+        return radius_major, radius_minor
+
     def _update_paired_tracked_blob(self, i_tracked_blob, i_blob):
         """Update a tracked blob paired with an instantaneous blob."""
 
@@ -606,13 +651,13 @@ class GOFPID():
         tracked_blob['presence'] += 1
         if tracked_blob['presence'] >= self.post_filter['presence_min']:
             tracked_blob['filter'].discard('presence')
-        if self._compute_distance(i_tracked_blob) >= self.post_filter['distance_min']:
+        if self._compute_total_distance(i_tracked_blob) >= self.post_filter['distance_min']:
             tracked_blob['filter'].discard('distance')
         #else:
         #    tracked_blob['filter'].add('distance') # Q: seems dangerous if circular mouvement?
 
-    def _compute_distance(self, i_tracked_blob):
-        """Compute relative distance between first and last centers."""
+    def _compute_total_distance(self, i_tracked_blob):
+        """Compute total distance between centers of first and last positions."""
 
         # distance between first and last centers
         dist = cv.norm(
@@ -689,7 +734,7 @@ class GOFPID():
             print("Intrusion detected")
         return y
 
-    def display(self, X, display_perspective=False):
+    def display(self, X, display_tracking=False, display_perspective=False):
         """On screen display.
 
         Parameters
@@ -697,6 +742,8 @@ class GOFPID():
         X : ndarray of int, shape (n_height, n_width) or \
                 (n_height, n_width, n_channel)
             Input frame.
+        display_tracking : bool, default=False
+            Flag to display the tracking space.
         display_perspective : bool, default=False
             Flag to display the perspective of tracked blobs.
         """
@@ -720,12 +767,20 @@ class GOFPID():
             cv.drawContours(X, [tracked_blob['contour']], 0, color)
             cv.circle(X, tracked_blob['anchor'], 4, color, -1)
 
+            if display_tracking:
+                self._display_tracking(
+                    X, tracked_blob['bottom'], tracked_blob['center'], color
+                )
             if display_perspective:
-                self._display_perspective(X, tracked_blob['contour'], color)
+                self._display_perspective(X, tracked_blob['bottom'], color)
 
-    def _display_perspective(self, X, contour, color):
+    def _display_tracking(self, X, bottom, center, color):
+        """Display tracking space."""
+        radius_maj, radius_min = self._compute_tracking_space(bottom)
+        cv.ellipse(X, center, [radius_maj, radius_min], 0, 0, 360, color, 2)
+
+    def _display_perspective(self, X, bottom, color):
         """Display perspective."""
-        bottom = get_bottom(contour, dtype=np.int16)
         height = np.int32(self._predict_perspective('height', bottom[1]))
         width = np.int32(self._predict_perspective('width', bottom[1]))
         rect1 = [bottom[0] - width//2, bottom[1]]
