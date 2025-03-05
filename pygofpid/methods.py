@@ -269,7 +269,7 @@ class GOFPID():
         if 'duration_min' not in self.alarm_def.keys():
             raise KeyError('Parameter alarm_def has no key "duration_min".')
 
-        self.tracked_blobs_ = None
+        self.tracked_blobs_ = []
         self.input_shape_ = None
         self._alarm_system = {
             'already_in_alarm': False,
@@ -410,7 +410,7 @@ class GOFPID():
         elif 'config_frame' in self.post_filter.keys():
             img = self.post_filter['config_frame']
         else:
-            if (self.verbose):
+            if self.verbose:
                 print("No configuration video or frame defined.")
             img = 100 * np.ones((240, 320, 3), dtype=np.uint8)
 
@@ -590,10 +590,6 @@ class GOFPID():
         #TODO: compute similarities using features extracted on contours.
         """
 
-        # initialize tracked blobs
-        if self.tracked_blobs_ is None:
-            self.tracked_blobs_ = []
-
         n_tracked_blobs = len(self.tracked_blobs_)
         n_blobs = len(self.blobs_)
 
@@ -745,15 +741,13 @@ class GOFPID():
                 tracked_blob['filtered'].discard('perimeter')
 
             # filtering by perspective
-            _, _, width, height = cv.boundingRect(
-                tracked_blob['contour']
-            )
+            _, _, width, height = cv.boundingRect(tracked_blob['contour'])
             area = width * height
-            area_min = self._predict_perspective(
+            area_persp = self._predict_perspective(
                 'area',
                 tracked_blob['bottom'][1],
             )
-            if area <= area_min * self.post_filter['perspective_coeff']:
+            if area <= area_persp * self.post_filter['perspective_coeff']:
                 # object is smaller than minimal perspective => filtered
                 tracked_blob['filtered'].add('perspective')
             else:
@@ -765,13 +759,9 @@ class GOFPID():
 
         blob_in_alarm = False
 
-        if self.tracked_blobs_ is None:
-            return blob_in_alarm
-
-        # detection on tracked blobs
         for tracked_blob in self.tracked_blobs_:
             if tracked_blob['filtered'] == set():
-                # no filter => intrusion detected
+                # not filtered => intrusion detected
                 blob_in_alarm = True
                 if self.alarm_def['keep_alarm']:
                     tracked_blob['already_in_alarm'] = True
@@ -810,7 +800,7 @@ class GOFPID():
                 (n_height, n_width, n_channel)
             Input frame.
         display_tracking : bool, default=False
-            Flag to display the tracking space.
+            Flag to display the tracking space of tracked blobs.
         display_perspective : bool, default=False
             Flag to display the perspective of tracked blobs.
         """
@@ -829,7 +819,7 @@ class GOFPID():
                     or 'distance' in tracked_blob['filtered']:
                 color = (0, 255, 0)
             else:
-                raise ValueError('Unknown filtering type')
+                raise ValueError(f'Unknown filtering type {tracked_blob["filtered"]}')
 
             cv.drawContours(X, [tracked_blob['contour']], 0, color)
             cv.circle(X, tracked_blob['anchor'], 4, color, -1)
@@ -844,7 +834,7 @@ class GOFPID():
     def _display_tracking(self, X, bottom, center, color):
         """Display tracking space."""
         radius_maj, radius_min = self._compute_tracking_space(bottom)
-        cv.ellipse(X, center, [radius_maj, radius_min], 0, 0, 360, color, 2)
+        cv.ellipse(X, center, [radius_maj, radius_min], 0, 0, 360, color, 1)
 
     def _display_perspective(self, X, bottom, color):
         """Display perspective."""
@@ -852,7 +842,7 @@ class GOFPID():
         width = np.int32(self._predict_perspective('width', bottom[1]))
         rect1 = [bottom[0] - width//2, bottom[1]]
         rect2 = [bottom[0] + width//2, bottom[1] - height]
-        cv.rectangle(X, rect1, rect2, color, 2)
+        cv.rectangle(X, rect1, rect2, color, 1)
 
 
 ###############################################################################
