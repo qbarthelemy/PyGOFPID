@@ -791,7 +791,7 @@ class GOFPID():
 
         return sys_in_alarm
 
-    def display(self, X, display_tracking=False, display_perspective=False):
+    def display(self, X, display={'tracking': False, 'perspective': False}):
         """On screen display.
 
         Parameters
@@ -799,10 +799,11 @@ class GOFPID():
         X : ndarray of int, shape (n_height, n_width) or \
                 (n_height, n_width, n_channel)
             Input frame.
-        display_tracking : bool, default=False
-            Flag to display the tracking space of tracked blobs.
-        display_perspective : bool, default=False
-            Flag to display the perspective of tracked blobs.
+        display : dict, default={'tracking': False, 'perspective': False}
+            Dictionary containing parameters for display:
+
+            - tracking: display the tracking space of tracked blobs;
+            - perspective: display the perspective of tracked blobs.
         """
 
         cv.drawContours(X, [self.post_filter['perimeter']], 0, (25, 200, 200))
@@ -824,11 +825,11 @@ class GOFPID():
             cv.drawContours(X, [tracked_blob['contour']], 0, color)
             cv.circle(X, tracked_blob['anchor'], 4, color, -1)
 
-            if display_tracking:
+            if display.get('tracking'):
                 self._display_tracking(
                     X, tracked_blob['bottom'], tracked_blob['center'], color
                 )
-            if display_perspective:
+            if display.get('perspective'):
                 self._display_perspective(X, tracked_blob['bottom'], color)
 
     def _display_tracking(self, X, bottom, center, color):

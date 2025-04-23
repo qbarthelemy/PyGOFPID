@@ -3,11 +3,11 @@
 Perimeter intrusion detection on a single video.
 ===============================================================================
 
-1 - Download video 'people-walking' here
-https://pythonprogramming.net/static/images/opencv/people-walking.mp4;
+1 - Download the video 'people-walking' you can find here
+    https://pythonprogramming.net/static/images/opencv/people-walking.mp4 ;
 2 - Put it in the same folder;
 3 - Run the script;
-4 - Press the "C" key to valid configuration pages.
+4 - Press the "C" key to validate configuration pages.
 """
 
 import cv2 as cv
