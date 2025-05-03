@@ -548,7 +548,7 @@ class GOFPID():
         y = np.clip(y, a_min=0, a_max=self.input_shape_[0] - 1)
         return self._perspective.get(key)[y]
 
-    def _find_blob(self, area_min=100):  #TODO: in parameters ?
+    def _find_blob(self, area_min=100):  # TODO: in parameters ?
         """Find blobs from foreground mask using contour retrieval."""
 
         # find blobs using contour retrieval
@@ -610,7 +610,7 @@ class GOFPID():
 
         # find tracked blob corresponding to each instantaneous blob
         for i in range(n_blobs):
-            #TODO: use similarities to find the optimal blob
+            # TODO: use similarities to find the optimal blob
             j_min = np.argmin(dist[i])
             if dist[i, j_min] <= 1:  # pair found
                 dist[i, j_min] = -1  # to mark that pair has been found
@@ -651,17 +651,17 @@ class GOFPID():
         dist = (x_ib - x_tb)^2 / r_maj^2 + (y_ib - y_tb)^2 / r_min^2 <= 1
         """
 
-        tracked_blob_bottom = self.tracked_blobs_[i_tracked_blob]['bottom']
-        radius_maj, radius_min = self._compute_tracking_space(tracked_blob_bottom)
+        tracked_blob_btm = self.tracked_blobs_[i_tracked_blob]['bottom']
+        radius_maj, radius_min = self._compute_tracking_space(tracked_blob_btm)
 
-        tracked_blob_center = self.tracked_blobs_[i_tracked_blob]['center']
+        tracked_blob_ctr = self.tracked_blobs_[i_tracked_blob]['center']
         blob_center = self.blobs_[i_blob]['center']
 
         if radius_maj <= 0 or radius_min <= 0:
             return 0
 
-        dist = (blob_center[0] - tracked_blob_center[0])**2 / radius_maj**2 \
-            + (blob_center[1] - tracked_blob_center[1])**2 / radius_min**2
+        dist = (blob_center[0] - tracked_blob_ctr[0])**2 / radius_maj**2 \
+            + (blob_center[1] - tracked_blob_ctr[1])**2 / radius_min**2
         return dist
 
     def _compute_tracking_space(self, bottom):
@@ -689,11 +689,14 @@ class GOFPID():
             tracked_blob['filtered'].discard('presence')
         if self._compute_total_distance(i_tracked_blob) >= self.post_filter['distance_min']:
             tracked_blob['filtered'].discard('distance')
-        #else:
-        #    tracked_blob['filtered'].add('distance') # Q: seems dangerous if circular mouvement?
+        # else:
+        #    # Q: seems dangerous if circular mouvement?
+        #    tracked_blob['filtered'].add('distance')
 
     def _compute_total_distance(self, i_tracked_blob):
-        """Compute total distance between centers of first and last positions."""
+        """Compute total distance between centers of first and last positions
+        of a tracked blob.
+        """
 
         # distance between first and last centers
         dist = cv.norm(
@@ -777,7 +780,7 @@ class GOFPID():
 
         self._alarm_system['duration'] -= 1
 
-        if sys_in_alarm and not self._alarm_system['already_in_alarm']: # and self._alarm_system.duration <= 0:
+        if sys_in_alarm and not self._alarm_system['already_in_alarm']:  # and self._alarm_system.duration <= 0:
             # beginning of intrusion
             self._alarm_system['duration'] = self.alarm_def['duration_min']
 

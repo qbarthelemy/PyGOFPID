@@ -8,6 +8,8 @@ Perimeter intrusion detection on i-LIDS sterile zone dataset.
 3 - Run the script.
 """
 
+import os
+
 import cv2 as cv
 import numpy as np
 from pygofpid.methods import GOFPID
@@ -19,7 +21,7 @@ from pygofpid.methods import GOFPID
 display = False
 
 # i-LIDS dataset path
-data_path = r'//TODO/2006_ILIDS/'
+data_path = r'\\TODO\2006_ILIDS'
 
 # videos in Disk_2-Testing
 video_names = [
@@ -48,48 +50,53 @@ def get_gofpid(view):
     # Intrusion detection config by view
     if view == '1':
         perimeter = np.array([
-            [1.   , 0.138],
-            [0.6  , 0.138],
+            [1.000, 0.138],
+            [0.600, 0.138],
             [0.463, 0.338],
-            [0.   , 0.7  ],
-            [0.   , 1.   ],
-            [1.   , 1.   ]
+            [0.000, 0.700],
+            [0.000, 1.000],
+            [1.000, 1.000]
         ])
         perspective = np.array([
             [0.65138889, 0.56770833],
-            [0.575     , 0.85243056],
+            [0.57500000, 0.85243056],
             [0.68333333, 0.20833333],
             [0.72777778, 0.34548611]
         ])
     elif view == '2':
         perimeter = np.array([
-            [1.   , 0.75 ],
+            [1.000, 0.750],
             [0.628, 0.388],
             [0.487, 0.205],
             [0.487, 0.112],
-            [0.432, 0.   ],
-            [0.   , 0.   ],
-            [0.   , 1.   ],
-            [1.   , 1.   ]
+            [0.432, 0.000],
+            [0.000, 0.000],
+            [0.000, 1.000],
+            [1.000, 1.000]
         ])
         perspective = np.array([
-            [0.49444444, 0.5625    ],
+            [0.49444444, 0.56250000],
             [0.40555556, 0.88541667],
             [0.31388889, 0.06944444],
-            [0.275     , 0.19965278]
+            [0.27500000, 0.19965278]
         ])
     else:
         raise ValueError(f'Unknown view {view}.')
 
     # Intrusion detection config on training videos
-    config_frame_filename = (
-        data_path + '/Disk_1-Training/calibration/SZ' + view + '_far.tif'
+    config_frame_filename = os.path.join(
+        data_path,
+        'Disk_1-Training',
+        'calibration',
+        'SZ',
+        view,
+        '_far.tif',
     )
     config_frame = cv.imread(config_frame_filename, cv.IMREAD_GRAYSCALE)
 
     gofpid = GOFPID(
         post_filter={
-            #'display_config': True,
+            # 'display_config': True,
             'perimeter': perimeter,
             'anchor': 'bottom',
             'perspective': perspective,
@@ -119,7 +126,12 @@ for video_name in video_names:
 
     print(video_name)
 
-    video_filename = data_path + '/Disk_2-Testing/video/' + video_name + '.mov'
+    video_filename = os.path.join(
+        data_path,
+        'Disk_2-Testing',
+        'video',
+        video_name + '.mov',
+    )
     vidcap = cv.VideoCapture(video_filename)
     if not vidcap.isOpened():
         raise ValueError(f'Unable to open video file {video_filename}')
@@ -134,13 +146,13 @@ for video_name in video_names:
         detection = gofpid.detect(frame)
 
         if display:
-            gofpid.display(frame)
+            gofpid.display(frame, {'tracking': True, 'perspective': True})
             cv.imshow('Frame', frame)
             if cv.waitKey(1) & 0xFF == ord('c'):
                 vidcap.release()
                 cv.destroyAllWindows()
                 break
 
-    #TODO: compute evaluation using detection value
+    # TODO: compute evaluation using detection value
 
 ###############################################################################
