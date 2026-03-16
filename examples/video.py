@@ -11,7 +11,7 @@ Perimeter intrusion detection on a single video.
 """
 
 import cv2 as cv
-from pygofpid.methods import GOFPID
+from pygofpid.pipeline import GOFPID
 
 
 ###############################################################################
