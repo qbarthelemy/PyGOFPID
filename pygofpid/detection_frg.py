@@ -1,11 +1,12 @@
-"""Methods."""
+"""Methods for foreground detection."""
 
 import cv2 as cv
 import numpy as np
 
+from .helpers import dist_euclidean
 
-
-###############################################################################
+BACKGROUND = 0
+FOREGROUND = 255
 
 
 class FrameDifferencing():
@@ -25,37 +26,139 @@ class FrameDifferencing():
 
     def __init__(self, threshold=5):
         self.threshold = threshold
-        self._X = None
+        self._model = None
 
     def apply(self, X):
         """Estimate foreground.
 
         Parameters
         ----------
-        X : ndarray
+        X : ndarray of int, shape (n_height, n_width) or \
+                (n_height, n_width, n_channel)
             Input frame.
 
         Returns
         -------
-        F : ndarray
+        F : ndarray, shape (n_height, n_width)
             Foreground frame.
         """
 
-        if self._X is None:
+        if self._model is None:
             F = np.zeros_like(X)
         else:
-            diff = cv.absdiff(X, self._X)
+            diff = cv.absdiff(X, self._model)
             _, F = cv.threshold(
                 diff,
                 self.threshold,
-                255,
+                FOREGROUND,
                 cv.THRESH_BINARY,
             )
 
-        self._X = X
+        self._model = X
         if F.ndim > 2:
             F = np.mean(F, axis=-1, dtype=np.uint8, keepdims=False)
 
         return F
 
 
+import random
+
+def get_random_number(lo, hi):
+    return random.randint(lo, hi)
+
+def get_random_neighbor_coord(x, y, width, height):
+    """Retourne un voisin aléatoire parmi les 8 connexes."""
+    dx = random.choice([-1, 0, 1])
+    dy = random.choice([-1, 0, 1])
+    xn = min(max(x + dx, 0), width - 1)
+    yn = min(max(y + dy, 0), height - 1)
+    return xn, yn
+
+
+class ViBe():
+    """Foreground detection by VIsual Background Extractor (ViBe).
+
+    Parameters
+    ----------
+    n_samples_per_pixel : int, default=20
+        Number of samples per pixel.
+
+    sphere_radius : float, default=20
+        Radius of the sphere.
+
+    n_samples_close : int, default=2
+        Number of close samples for being part of the background.
+
+    subsampling_factor : int, default=16
+        Amount of random subsampling.
+
+    References
+    ----------
+    .. [1] ViBe: A universal background subtraction algorithm for video
+        sequences
+        Barnich, O., & Van Droogenbroeck, M.
+        IEEE Trans Image Process, 2010.
+    """
+
+    def __init__(
+        self,
+        n_samples_per_pixel=20,
+        sphere_radius=20,
+        n_samples_close=2,
+        subsampling_factor=16,
+    ):
+        self.n_samples_per_pixel = n_samples_per_pixel
+        self.sphere_radius = sphere_radius
+        self.n_samples_close = n_samples_close
+        self.subsampling_factor = subsampling_factor
+        self._model = None
+
+    def apply(self, X):
+        """Estimate foreground.
+
+        Parameters
+        ----------
+        X : ndarray of int, shape (n_height, n_width) or \
+                (n_height, n_width, n_channel)
+            Input frame.
+
+        Returns
+        -------
+        F : ndarray of int, shape (n_height, n_width)
+            Foreground frame.
+        """
+        n_height, n_width = X.shape[:2]
+        if self._model is None:
+            self._model = np.zeros((*X.shape, self.n_samples_per_pixel))
+        F = np.zeros((n_height, n_width), dtype=np.uint8)
+
+        for y in range(n_height):
+            for x in range(n_width):
+
+                # compare pixel to background model
+                c, i = 0, 0
+                while c < self.n_samples_close and i < self.n_samples_per_pixel:
+                    dist = dist_euclidean(X[y, x], self._model[y, x, ..., i])
+                    if dist < self.sphere_radius:
+                        c += 1
+                    i += 1
+
+                # classify pixel and update model
+                if c >= self.n_samples_close:
+                    F[y, x] = BACKGROUND
+
+                    # update current pixel model
+                    if get_random_number(0, self.subsampling_factor - 1) == 0:
+                        r = get_random_number(0, self.n_samples_per_pixel - 1)
+                        self._model[y, x, ..., r] = X[y, x]
+
+                    # update neighboring pixel model
+                    if get_random_number(0, self.subsampling_factor - 1) == 0:
+                        xn, yn = get_random_neighbor_coord(x, y, n_width, n_height)
+                        r = get_random_number(0, self.n_samples_per_pixel - 1)
+                        self._model[y, x, ..., r] = X[y, x]
+
+                else:
+                    F[y, x] = FOREGROUND
+
+        return F

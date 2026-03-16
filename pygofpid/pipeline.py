@@ -1,4 +1,4 @@
-"""Methods."""
+"""Pipeline for perimeter intrusion detection."""
 
 import cv2 as cv
 import numpy as np
