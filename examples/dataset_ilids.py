@@ -12,7 +12,8 @@ import os
 
 import cv2 as cv
 import numpy as np
-from pygofpid.methods import GOFPID
+
+from pygofpid.pipeline import GOFPID
 
 
 ###############################################################################

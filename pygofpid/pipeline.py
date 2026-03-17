@@ -1,4 +1,4 @@
-"""Methods."""
+"""Pipeline for perimeter intrusion detection."""
 
 import cv2 as cv
 import numpy as np
@@ -16,6 +16,7 @@ from .helpers import (
     unnormalize_coords,
     SimpleLinearRegression,
 )
+from .segmentation import FrameDifferencing, ViBe
 
 
 class GOFPID():
@@ -48,11 +49,12 @@ class GOFPID():
         - cv.blur for a normalized box filter [BoxBlur]_;
         - None, no processing.
 
-    frg_detect : {'MOG2', 'KNN', 'FD'}, default='MOG2'
+    frg_detect : {'MOG2', 'KNN', 'ViBe', 'FD'}, default='MOG2'
         Method for foreground detection [BkgSub]_:
 
         - 'MOG2' background subtraction by mixture of Gaussians [MOG2]_;
         - 'KNN' background subtraction by K-nearest neigbours [KNN]_;
+        - 'ViBe' background subtraction by VIsual Background Extractor;
         - 'FD' frame differencing.
 
     mat_morph : list of dict | None, default=[ \
@@ -232,6 +234,8 @@ class GOFPID():
             self._frg_detect_mth = cv.createBackgroundSubtractorKNN()
         elif self.frg_detect == 'FD':
             self._frg_detect_mth = FrameDifferencing()
+        elif self.frg_detect == 'ViBe':
+            self._frg_detect_mth = ViBe()
         else:
             raise ValueError('Unknown method for foreground detection')
 
@@ -847,57 +851,3 @@ class GOFPID():
         rect1 = [bottom[0] - width//2, bottom[1]]
         rect2 = [bottom[0] + width//2, bottom[1] - height]
         cv.rectangle(X, rect1, rect2, color, 1)
-
-
-###############################################################################
-
-
-class FrameDifferencing():
-    """Foreground detection by frame differencing.
-
-    F = abs(X_t - X_{t-1}) > threshold
-
-    Parameters
-    ----------
-    threshold : float, default=5
-        Threshold on absolute difference to detect foreground.
-
-    References
-    ----------
-    .. [1] https://en.wikipedia.org/wiki/Foreground_detection#Using_frame_differencing
-    """  # noqa
-
-    def __init__(self, threshold=5):
-        self.threshold = threshold
-        self._X = None
-
-    def apply(self, X):
-        """Estimate foreground.
-
-        Parameters
-        ----------
-        X : ndarray
-            Input frame.
-
-        Returns
-        -------
-        F : ndarray
-            Foreground frame.
-        """
-
-        if self._X is None:
-            F = np.zeros_like(X)
-        else:
-            diff = cv.absdiff(X, self._X)
-            _, F = cv.threshold(
-                diff,
-                self.threshold,
-                255,
-                cv.THRESH_BINARY,
-            )
-
-        self._X = X
-        if F.ndim > 2:
-            F = np.mean(F, axis=-1, dtype=np.uint8, keepdims=False)
-
-        return F

@@ -186,6 +186,13 @@ def unnormalize_coords(ncoords, shape, dtype=np.uint16):
     return coords.astype(dtype)
 
 
+def dist_euclidean(a, b):
+    """Euclidean distance between scalars or vectors."""
+    if isinstance(a, (int, float)):
+        return abs(a - b)
+    return np.linalg.norm(a - b)
+
+
 def cdist_euclidean(XA, XB):
     """NumPy implementation of SciPy's cdist.
 
