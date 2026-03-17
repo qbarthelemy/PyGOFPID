@@ -98,7 +98,7 @@ def test_gofpid_blur_errors():
 
 
 @pytest.mark.parametrize("size", [(32, 20), (20, 32, 1), (32, 20, 3)])
-@pytest.mark.parametrize("frg_detect", ['MOG2', 'KNN', 'FD', 'ViBe'])
+@pytest.mark.parametrize("frg_detect", ['MOG2', 'KNN', 'ViBe', 'FD'])
 def test_gofpid_frgdetect(size, frg_detect):
     """Test frg_detect parameters."""
     gofpid = GOFPID(

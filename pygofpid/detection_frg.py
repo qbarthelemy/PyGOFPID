@@ -1,15 +1,24 @@
-"""Methods for foreground detection."""
+"""Methods for foreground segmentation by background modeling."""
+
+from abc import abstractmethod, ABCMeta
 
 import cv2 as cv
 import numpy as np
 
 from .helpers import dist_euclidean
 
-BACKGROUND = 0
-FOREGROUND = 255
+
+class ForegroundEstimator(metaclass=ABCMeta):
+
+    BACKGROUND = 0
+    FOREGROUND = 255
+
+    @abstractmethod
+    def apply(self, X):
+        pass
 
 
-class FrameDifferencing():
+class FrameDifferencing(ForegroundEstimator):
     """Foreground detection by frame differencing.
 
     F = abs(X_t - X_{t-1}) > threshold
@@ -50,7 +59,7 @@ class FrameDifferencing():
             _, F = cv.threshold(
                 diff,
                 self.threshold,
-                FOREGROUND,
+                self.FOREGROUND,
                 cv.THRESH_BINARY,
             )
 
@@ -61,7 +70,7 @@ class FrameDifferencing():
         return F
 
 
-class ViBe():
+class ViBe(ForegroundEstimator):
     """Foreground detection by VIsual Background Extractor (ViBe).
 
     Parameters
@@ -140,7 +149,7 @@ class ViBe():
 
                 # classify pixel and update model
                 if c >= self.n_samples_close:
-                    F[y, x] = BACKGROUND
+                    F[y, x] = self.BACKGROUND
 
                     # update current pixel model
                     if self._get_random_int(0, self.subsampling_factor - 1) == 0:
@@ -155,11 +164,12 @@ class ViBe():
                         self._model[yn, xn, ..., r] = X[y, x]
 
                 else:
-                    F[y, x] = FOREGROUND
+                    F[y, x] = self.FOREGROUND
 
         return F
 
     def _get_random_int(self, low, high):
+        """Return a random integer."""
         return self._rnd.randint(low, high)
 
     def _get_random_coord(self, val, val_max):
