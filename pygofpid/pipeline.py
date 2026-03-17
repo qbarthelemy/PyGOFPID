@@ -3,7 +3,7 @@
 import cv2 as cv
 import numpy as np
 
-from .detection_frg import FrameDifferencing
+from .detection_frg import FrameDifferencing, ViBe
 from .helpers import (
     read_first_frame,
     plot_lines,
@@ -49,11 +49,12 @@ class GOFPID():
         - cv.blur for a normalized box filter [BoxBlur]_;
         - None, no processing.
 
-    frg_detect : {'MOG2', 'KNN', 'FD'}, default='MOG2'
+    frg_detect : {'MOG2', 'KNN', 'ViBe', 'FD'}, default='MOG2'
         Method for foreground detection [BkgSub]_:
 
         - 'MOG2' background subtraction by mixture of Gaussians [MOG2]_;
         - 'KNN' background subtraction by K-nearest neigbours [KNN]_;
+        - 'ViBe' background subtraction by VIsual Background Extractor;
         - 'FD' frame differencing.
 
     mat_morph : list of dict | None, default=[ \
@@ -233,6 +234,8 @@ class GOFPID():
             self._frg_detect_mth = cv.createBackgroundSubtractorKNN()
         elif self.frg_detect == 'FD':
             self._frg_detect_mth = FrameDifferencing()
+        elif self.frg_detect == 'ViBe':
+            self._frg_detect_mth = ViBe()
         else:
             raise ValueError('Unknown method for foreground detection')
 

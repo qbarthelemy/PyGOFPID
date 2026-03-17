@@ -61,20 +61,6 @@ class FrameDifferencing():
         return F
 
 
-import random
-
-def get_random_number(lo, hi):
-    return random.randint(lo, hi)
-
-def get_random_neighbor_coord(x, y, width, height):
-    """Retourne un voisin aléatoire parmi les 8 connexes."""
-    dx = random.choice([-1, 0, 1])
-    dy = random.choice([-1, 0, 1])
-    xn = min(max(x + dx, 0), width - 1)
-    yn = min(max(y + dy, 0), height - 1)
-    return xn, yn
-
-
 class ViBe():
     """Foreground detection by VIsual Background Extractor (ViBe).
 
@@ -92,6 +78,9 @@ class ViBe():
     subsampling_factor : int, default=16
         Amount of random subsampling.
 
+    seed : {None, int, array_like}, default=42
+        Random seed used to initialize the pseudo-random number generator.
+
     References
     ----------
     .. [1] ViBe: A universal background subtraction algorithm for video
@@ -106,12 +95,15 @@ class ViBe():
         sphere_radius=20,
         n_samples_close=2,
         subsampling_factor=16,
+        seed=42,
     ):
         self.n_samples_per_pixel = n_samples_per_pixel
         self.sphere_radius = sphere_radius
         self.n_samples_close = n_samples_close
         self.subsampling_factor = subsampling_factor
+        self.seed = seed
         self._model = None
+        self._rnd = None
 
     def apply(self, X):
         """Estimate foreground.
@@ -132,6 +124,9 @@ class ViBe():
             self._model = np.zeros((*X.shape, self.n_samples_per_pixel))
         F = np.zeros((n_height, n_width), dtype=np.uint8)
 
+        if self._rnd == None:
+            self._rnd = np.random.RandomState(seed=self.seed)
+
         for y in range(n_height):
             for x in range(n_width):
 
@@ -148,17 +143,27 @@ class ViBe():
                     F[y, x] = BACKGROUND
 
                     # update current pixel model
-                    if get_random_number(0, self.subsampling_factor - 1) == 0:
-                        r = get_random_number(0, self.n_samples_per_pixel - 1)
+                    if self._get_random_int(0, self.subsampling_factor - 1) == 0:
+                        r = self._get_random_int(0, self.n_samples_per_pixel - 1)
                         self._model[y, x, ..., r] = X[y, x]
 
                     # update neighboring pixel model
-                    if get_random_number(0, self.subsampling_factor - 1) == 0:
-                        xn, yn = get_random_neighbor_coord(x, y, n_width, n_height)
-                        r = get_random_number(0, self.n_samples_per_pixel - 1)
-                        self._model[y, x, ..., r] = X[y, x]
+                    if self._get_random_int(0, self.subsampling_factor - 1) == 0:
+                        yn = self._get_random_coord(y, n_height)
+                        xn = self._get_random_coord(x, n_width)
+                        r = self._get_random_int(0, self.n_samples_per_pixel - 1)
+                        self._model[yn, xn, ..., r] = X[y, x]
 
                 else:
                     F[y, x] = FOREGROUND
 
         return F
+
+    def _get_random_int(self, low, high):
+        return self._rnd.randint(low, high)
+
+    def _get_random_coord(self, val, val_max):
+        """Return a random coord in the 8-connected neighborhood."""
+        delta = self._rnd.choice([-1, 0, 1])
+        val_new = min(max(val + delta, 0), val_max - 1)
+        return val_new

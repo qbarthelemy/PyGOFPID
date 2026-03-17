@@ -57,7 +57,7 @@ def test_gofpid_convert(convert):
     gofpid.detect(img)
 
 
-@pytest.mark.parametrize("size", [(64, 64), (64, 64, 1), (64, 64, 3)])
+@pytest.mark.parametrize("size", [(64, 50), (64, 32, 1), (32, 20, 3)])
 @pytest.mark.parametrize(
     "blur",
     [
@@ -97,8 +97,8 @@ def test_gofpid_blur_errors():
         ).initialize()
 
 
-@pytest.mark.parametrize("size", [(64, 64), (64, 64, 1), (64, 64, 3)])
-@pytest.mark.parametrize("frg_detect", ['MOG2', 'KNN', 'FD'])
+@pytest.mark.parametrize("size", [(32, 20), (20, 32, 1), (32, 20, 3)])
+@pytest.mark.parametrize("frg_detect", ['MOG2', 'KNN', 'FD', 'ViBe'])
 def test_gofpid_frgdetect(size, frg_detect):
     """Test frg_detect parameters."""
     gofpid = GOFPID(
@@ -120,7 +120,7 @@ def test_gofpid_frgdetect_errors():
         ).initialize()
 
 
-@pytest.mark.parametrize("size", [(64, 64), (64, 64, 1), (64, 64, 3)])
+@pytest.mark.parametrize("size", [(64, 50), (20, 32, 1), (32, 20, 3)])
 @pytest.mark.parametrize(
     "mat_morph",
     [
@@ -183,7 +183,7 @@ def test_gofpid_postfilter(anchor):
     ).initialize()
 
     for _ in range(n_reps):
-        img = np.random.randint(0, high=255, size=(64, 64), dtype=np.uint8)
+        img = np.random.randint(0, high=255, size=(64, 50), dtype=np.uint8)
         gofpid.detect(img)
 
 
@@ -277,5 +277,5 @@ def test_gofpid_alarmdef(keep_alarm):
     ).initialize()
 
     for _ in range(n_reps):
-        img = np.random.randint(0, high=255, size=(64, 64), dtype=np.uint8)
+        img = np.random.randint(0, high=255, size=(64, 50), dtype=np.uint8)
         gofpid.detect(img)

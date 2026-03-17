@@ -1,8 +1,9 @@
 """Tests for module helpers."""
 
+import numpy as np
+from numpy.testing import assert_almost_equal
 import pytest
 from pytest import approx
-import numpy as np
 
 from pygofpid.helpers import (
     plot_lines,
@@ -15,6 +16,7 @@ from pygofpid.helpers import (
     get_center,
     normalize_coords,
     unnormalize_coords,
+    dist_euclidean,
     cdist_euclidean,
     SimpleLinearRegression,
 )
@@ -101,13 +103,28 @@ def test_unnormalize_coords(gt, ncoords):
     assert gt == approx(coords)
 
 
+def test_dist_euclidean_scalars():
+    """Test dist_euclidean for scalars."""
+    a, b = np.random.randn(2)
+    dist = dist_euclidean(a, b)
+    assert isinstance(dist, float)
+
+
+def test_dist_euclidean_vectors():
+    """Test dist_euclidean for vectors."""
+    n = 5
+    a, b = np.random.randn(n), np.random.randn(n)
+    dist = dist_euclidean(a, b)
+    assert isinstance(dist, float)
+
+
 def test_cdist_euclidean():
     """Test cdist_euclidean."""
     XA = np.array([[0, 0], [0, 10]])
     XB = np.array([[0, 0], [0, 10], [10, 0]])
     dists = cdist_euclidean(XA, XB)
     assert dists.shape == (len(XA), len(XB))
-    np.testing.assert_almost_equal(dists, [[0, 10, 10], [10, 0, 14.14213562]])
+    assert_almost_equal(dists, [[0, 10, 10], [10, 0, 14.14213562]])
 
 
 def test_simplelinearregression():
