@@ -1,10 +1,8 @@
-"""Tests for module gofpid."""
-
-import pytest
 import numpy as np
 from numpy.testing import assert_array_equal
+import pytest
 
-from pygofpid.detection_frg import FrameDifferencing, ViBe
+from pygofpid.segmentation import FrameDifferencing, ViBe
 
 np.random.seed(17)
 

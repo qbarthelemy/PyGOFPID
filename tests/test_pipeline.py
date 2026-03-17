@@ -1,8 +1,6 @@
-"""Tests for module gofpid."""
-
-import pytest
 import cv2 as cv
 import numpy as np
+import pytest
 
 from pygofpid.pipeline import GOFPID
 

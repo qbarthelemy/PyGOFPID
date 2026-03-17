@@ -1,5 +1,3 @@
-"""Tests for module helpers."""
-
 import numpy as np
 from numpy.testing import assert_almost_equal
 import pytest
@@ -20,7 +18,6 @@ from pygofpid.helpers import (
     cdist_euclidean,
     SimpleLinearRegression,
 )
-
 
 np.random.seed(17)
 

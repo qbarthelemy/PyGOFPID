@@ -3,7 +3,6 @@
 import cv2 as cv
 import numpy as np
 
-from .detection_frg import FrameDifferencing, ViBe
 from .helpers import (
     read_first_frame,
     plot_lines,
@@ -17,6 +16,7 @@ from .helpers import (
     unnormalize_coords,
     SimpleLinearRegression,
 )
+from .segmentation import FrameDifferencing, ViBe
 
 
 class GOFPID():
