@@ -131,42 +131,44 @@ class ViBe(ForegroundEstimator):
         n_height, n_width = X.shape[:2]
         if self._model is None:
             self._model = np.zeros((*X.shape, self.n_samples_per_pixel))
-        F = np.zeros((n_height, n_width), dtype=np.uint8)
+        self._F = np.zeros((n_height, n_width), dtype=np.uint8)
 
         if self._rnd == None:
             self._rnd = np.random.RandomState(seed=self.seed)
 
         for y in range(n_height):
             for x in range(n_width):
+                self._apply_pixel(X, y, x, n_height, n_width)
 
-                # compare pixel to background model
-                c, i = 0, 0
-                while c < self.n_samples_close and i < self.n_samples_per_pixel:
-                    dist = dist_euclidean(X[y, x], self._model[y, x, ..., i])
-                    if dist < self.sphere_radius:
-                        c += 1
-                    i += 1
+        return self._F
 
-                # classify pixel and update model
-                if c >= self.n_samples_close:
-                    F[y, x] = self.BACKGROUND
+    def _apply_pixel(self, X, y, x, n_height, n_width):
+        # compare pixel to background model
+        count, index = 0, 0
+        while count < self.n_samples_close and index < self.n_samples_per_pixel:
+            dist = dist_euclidean(X[y, x], self._model[y, x, ..., index])
+            if dist < self.sphere_radius:
+                count += 1
+            index += 1
 
-                    # update current pixel model
-                    if self._get_random_int(0, self.subsampling_factor - 1) == 0:
-                        r = self._get_random_int(0, self.n_samples_per_pixel - 1)
-                        self._model[y, x, ..., r] = X[y, x]
+        # classify pixel and update model
+        if count >= self.n_samples_close:
+            self._F[y, x] = self.BACKGROUND
 
-                    # update neighboring pixel model
-                    if self._get_random_int(0, self.subsampling_factor - 1) == 0:
-                        yn = self._get_random_coord(y, n_height)
-                        xn = self._get_random_coord(x, n_width)
-                        r = self._get_random_int(0, self.n_samples_per_pixel - 1)
-                        self._model[yn, xn, ..., r] = X[y, x]
+            # update current pixel model
+            if self._get_random_int(0, self.subsampling_factor - 1) == 0:
+                r = self._get_random_int(0, self.n_samples_per_pixel - 1)
+                self._model[y, x, ..., r] = X[y, x]
 
-                else:
-                    F[y, x] = self.FOREGROUND
+            # update neighboring pixel model
+            if self._get_random_int(0, self.subsampling_factor - 1) == 0:
+                yn = self._get_random_coord(y, n_height)
+                xn = self._get_random_coord(x, n_width)
+                r = self._get_random_int(0, self.n_samples_per_pixel - 1)
+                self._model[yn, xn, ..., r] = X[y, x]
 
-        return F
+        else:
+            self._F[y, x] = self.FOREGROUND
 
     def _get_random_int(self, low, high):
         """Return a random integer."""
