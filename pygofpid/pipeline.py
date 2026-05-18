@@ -16,7 +16,7 @@ from .helpers import (
     unnormalize_coords,
     SimpleLinearRegression,
 )
-from .segmentation import FrameDifferencing, ViBe, MultipleBackgrounds
+from .segmentation import FrameDifferencing, ViBe, MultipleForegroundEstimators
 
 
 class GOFPID():
@@ -297,7 +297,7 @@ class GOFPID():
             frg_detect_mths = [
                 self._initialize_frg_detect(p) for p in param
             ]
-            return MultipleBackgrounds(frg_detect_mths)
+            return MultipleForegroundEstimators(frg_detect_mths)
 
         else:
             raise ValueError('Parameter foreground detection must be a '

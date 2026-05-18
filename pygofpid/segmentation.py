@@ -188,22 +188,25 @@ class ViBe(ForegroundEstimator):
 ###############################################################################
 
 
-class MultipleBackgrounds(ForegroundEstimator):
-    """Foreground detection combining multiple background models.
+class MultipleForegroundEstimators(ForegroundEstimator):
+    """Foreground detection combining multiple estimators.
 
     Parameters
     ----------
-    methods : list of instances, default=None
-        Methods of background modeling.
+    frg_methods : list of instances, default=None
+        Foreground estimators.
+    comb_method : callable, default=np.median
+        Method to combine outputs of estimators.
     """
 
-    def __init__(self, methods=None):
-        if methods is None:
-            methods = [ViBe(), FrameDifferencing()]
-        self.methods = methods
+    def __init__(self, frg_methods=None, comb_method=np.median):
+        if frg_methods is None:
+            frg_methods = [ViBe(), FrameDifferencing()]
+        self.frg_methods = frg_methods
+        self.comb_method = comb_method
 
     def apply(self, X):
-        """Estimate foreground for each method, and average outputs.
+        """Estimate foreground for each method, and combine outputs.
 
         Parameters
         ----------
@@ -216,8 +219,6 @@ class MultipleBackgrounds(ForegroundEstimator):
         F : ndarray of int, shape (n_height, n_width)
             Foreground frame.
         """
-        F = [method.apply(X) for method in self.methods]
-
-        F = np.mean(F, axis=0, dtype=np.uint8, keepdims=False)  # TODO
-
-        return F
+        F = [method.apply(X) for method in self.frg_methods]
+        F = self.comb_method(F, axis=0, keepdims=False)
+        return F.astype(np.uint8)

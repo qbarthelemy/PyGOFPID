@@ -3,7 +3,11 @@ import numpy as np
 from numpy.testing import assert_array_equal
 import pytest
 
-from pygofpid.segmentation import FrameDifferencing, ViBe, MultipleBackgrounds
+from pygofpid.segmentation import (
+    FrameDifferencing,
+    ViBe,
+    MultipleForegroundEstimators,
+)
 
 np.random.seed(17)
 
@@ -30,7 +34,7 @@ def test_framedifferencing():
     cv.createBackgroundSubtractorKNN,
     ViBe,
     FrameDifferencing,
-    MultipleBackgrounds,
+    MultipleForegroundEstimators,
 ])
 @pytest.mark.parametrize("size", [(32, 28), (28, 32, 1), (32, 28, 3)])
 def test_segmentation(frg_detector, size):
@@ -41,19 +45,23 @@ def test_segmentation(frg_detector, size):
         out = fd.apply(img)
         assert out.shape == size[:2]
         assert out.dtype == np.uint8
-        if frg_detector == MultipleBackgrounds or \
+        if frg_detector == MultipleForegroundEstimators or \
                 frg_detector == FrameDifferencing and len(size) > 2:
             return
         assert np.all(np.isin(out, [0, 127, 255]))
 
 
+@pytest.mark.parametrize("comb_method", [np.median, np.mean])
 @pytest.mark.parametrize("size", [(12, 28), (28, 16, 1), (12, 16, 3)])
-def test_multiplebackgrounds(size):
-    fd = MultipleBackgrounds([
-        cv.createBackgroundSubtractorKNN(),
-        ViBe(),
-        FrameDifferencing()
-    ])
+def test_multiple_foreground_estimpators(comb_method, size):
+    fd = MultipleForegroundEstimators(
+        frg_methods = [
+            cv.createBackgroundSubtractorKNN(),
+            ViBe(),
+            FrameDifferencing()
+        ],
+        comb_method = comb_method,
+    )
 
     for _ in range(10):
         img = np.random.randint(0, high=255, size=size, dtype=np.uint8)
