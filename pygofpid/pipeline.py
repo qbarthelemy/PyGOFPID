@@ -232,10 +232,10 @@ class GOFPID():
             self._frg_detect_mth = cv.createBackgroundSubtractorMOG2()
         elif self.frg_detect == 'KNN':
             self._frg_detect_mth = cv.createBackgroundSubtractorKNN()
-        elif self.frg_detect == 'FD':
-            self._frg_detect_mth = FrameDifferencing()
         elif self.frg_detect == 'ViBe':
             self._frg_detect_mth = ViBe()
+        elif self.frg_detect == 'FD':
+            self._frg_detect_mth = FrameDifferencing()
         else:
             raise ValueError('Unknown method for foreground detection')
 

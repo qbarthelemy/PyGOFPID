@@ -19,9 +19,10 @@ class ForegroundEstimator(metaclass=ABCMeta):
 
 
 class FrameDifferencing(ForegroundEstimator):
-    """Foreground detection by frame differencing.
+    r"""Foreground detection by frame differencing.
 
-    F = abs(X_t - X_{t-1}) > threshold
+    .. math::
+        F = abs(X_t - X_{t-1}) > threshold
 
     Parameters
     ----------
@@ -48,7 +49,7 @@ class FrameDifferencing(ForegroundEstimator):
 
         Returns
         -------
-        F : ndarray, shape (n_height, n_width)
+        F : ndarray of int, shape (n_height, n_width)
             Foreground frame.
         """
 
