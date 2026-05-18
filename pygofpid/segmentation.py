@@ -18,6 +18,9 @@ class ForegroundEstimator(metaclass=ABCMeta):
         pass
 
 
+###############################################################################
+
+
 class FrameDifferencing(ForegroundEstimator):
     r"""Foreground detection by frame differencing.
 
@@ -180,3 +183,41 @@ class ViBe(ForegroundEstimator):
         delta = self._rnd.choice([-1, 0, 1])
         val_new = min(max(val + delta, 0), val_max - 1)
         return val_new
+
+
+###############################################################################
+
+
+class MultipleBackgrounds(ForegroundEstimator):
+    """Foreground detection combining multiple background models.
+
+    Parameters
+    ----------
+    methods : list of instances, default=None
+        Methods of background modeling.
+    """
+
+    def __init__(self, methods=None):
+        if methods is None:
+            methods = [ViBe(), FrameDifferencing()]
+        self.methods = methods
+
+    def apply(self, X):
+        """Estimate foreground for each method, and average outputs.
+
+        Parameters
+        ----------
+        X : ndarray of int, shape (n_height, n_width) or \
+                (n_height, n_width, n_channel)
+            Input frame.
+
+        Returns
+        -------
+        F : ndarray of int, shape (n_height, n_width)
+            Foreground frame.
+        """
+        F = [method.apply(X) for method in self.methods]
+
+        F = np.mean(F, axis=0, dtype=np.uint8, keepdims=False)  # TODO
+
+        return F

@@ -16,7 +16,7 @@ from .helpers import (
     unnormalize_coords,
     SimpleLinearRegression,
 )
-from .segmentation import FrameDifferencing, ViBe
+from .segmentation import FrameDifferencing, ViBe, MultipleBackgrounds
 
 
 class GOFPID():
@@ -49,13 +49,15 @@ class GOFPID():
         - cv.blur for a normalized box filter [BoxBlur]_;
         - None, no processing.
 
-    frg_detect : {'MOG2', 'KNN', 'ViBe', 'FD'}, default='MOG2'
+    frg_detect : str | list | callable, default='MOG2'
         Method for foreground detection [BkgSub]_:
 
         - 'MOG2' background subtraction by mixture of Gaussians [MOG2]_;
         - 'KNN' background subtraction by K-nearest neigbours [KNN]_;
         - 'ViBe' background subtraction by VIsual Background Extractor;
         - 'FD' frame differencing.
+
+        If list, it combines the ouputs of the multiple models.
 
     mat_morph : list of dict | None, default=[ \
             {'fun': cv.erode, \
@@ -228,16 +230,7 @@ class GOFPID():
             if 'borderType' not in self.blur.keys():
                 self.blur['borderType'] = cv.BORDER_DEFAULT
 
-        if self.frg_detect == 'MOG2':
-            self._frg_detect_mth = cv.createBackgroundSubtractorMOG2()
-        elif self.frg_detect == 'KNN':
-            self._frg_detect_mth = cv.createBackgroundSubtractorKNN()
-        elif self.frg_detect == 'ViBe':
-            self._frg_detect_mth = ViBe()
-        elif self.frg_detect == 'FD':
-            self._frg_detect_mth = FrameDifferencing()
-        else:
-            raise ValueError('Unknown method for foreground detection')
+        self._frg_detect_mth = self._initialize_frg_detect(self.frg_detect)
 
         if self.mat_morph:
             for d in self.mat_morph:
@@ -281,6 +274,35 @@ class GOFPID():
         }
 
         return self
+
+    def _initialize_frg_detect(self, param):
+        """initialize foreground detector."""
+
+        if isinstance(param, str):
+            if param == 'MOG2':
+                return cv.createBackgroundSubtractorMOG2()
+            elif param == 'KNN':
+                return cv.createBackgroundSubtractorKNN()
+            elif param == 'ViBe':
+                return ViBe()
+            elif param == 'FD':
+                return FrameDifferencing()
+            else:
+                raise ValueError('Unknown method for foreground detection')
+
+        elif hasattr(param, '__call__'):
+            return param()
+
+        elif isinstance(param, list):
+            frg_detect_mths = [
+                self._initialize_frg_detect(p) for p in param
+            ]
+            return MultipleBackgrounds(frg_detect_mths)
+
+        else:
+            raise ValueError('Parameter foreground detection must be a '
+                             'string, a callable or a list '
+                             f'(Got {type(self.frg_detect)}).')
 
     def _check_perimeter(self):
         """Check parameter perimeter."""

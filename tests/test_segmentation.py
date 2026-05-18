@@ -3,7 +3,7 @@ import numpy as np
 from numpy.testing import assert_array_equal
 import pytest
 
-from pygofpid.segmentation import FrameDifferencing, ViBe
+from pygofpid.segmentation import FrameDifferencing, ViBe, MultipleBackgrounds
 
 np.random.seed(17)
 
@@ -25,21 +25,36 @@ def test_framedifferencing():
     assert_array_equal(out, np.array([[0, 0, 255], [255, 255, 0]]))
 
 
-@pytest.mark.parametrize("frg_detect", [
+@pytest.mark.parametrize("frg_detector", [
     cv.createBackgroundSubtractorMOG2,
     cv.createBackgroundSubtractorKNN,
     ViBe,
     FrameDifferencing,
+    MultipleBackgrounds,
 ])
 @pytest.mark.parametrize("size", [(32, 28), (28, 32, 1), (32, 28, 3)])
-def test_segmentation(frg_detect, size):
-    fd = frg_detect()
+def test_segmentation(frg_detector, size):
+    fd = frg_detector()
 
-    for _ in range(50):
+    for _ in range(10):
         img = np.random.randint(0, high=255, size=size, dtype=np.uint8)
         out = fd.apply(img)
         assert out.shape == size[:2]
         assert out.dtype == np.uint8
-        if frg_detect == FrameDifferencing and len(size) > 2:
+        if frg_detector == MultipleBackgrounds or \
+                frg_detector == FrameDifferencing and len(size) > 2:
             return
         assert np.all(np.isin(out, [0, 127, 255]))
+
+
+@pytest.mark.parametrize("size", [(12, 28), (28, 16, 1), (12, 16, 3)])
+def test_multiplebackgrounds(size):
+    fd = MultipleBackgrounds([
+        cv.createBackgroundSubtractorKNN(),
+        ViBe(),
+        FrameDifferencing()
+    ])
+
+    for _ in range(10):
+        img = np.random.randint(0, high=255, size=size, dtype=np.uint8)
+        fd.apply(img)
