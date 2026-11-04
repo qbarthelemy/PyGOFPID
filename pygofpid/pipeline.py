@@ -39,7 +39,7 @@ class GOFPID():
     convert : OpenCV color conversion codes | None, default=None
         Convert input frame from color to gray [Color]_.
 
-    blur : OpenCV bur filter | None, default={ \
+    blur : OpenCV blur filter | None, default={ \
             'fun': cv.GaussianBlur, \
             'ksize': (3, 3), \
             'borderType': cv.BORDER_DEFAULT}
@@ -53,11 +53,11 @@ class GOFPID():
         Method for foreground detection [BkgSub]_:
 
         - 'MOG2' background subtraction by mixture of Gaussians [MOG2]_;
-        - 'KNN' background subtraction by K-nearest neigbours [KNN]_;
+        - 'KNN' background subtraction by K-nearest neighbors [KNN]_;
         - 'ViBe' background subtraction by VIsual Background Extractor;
         - 'FD' frame differencing.
 
-        If list, it combines the ouputs of the multiple models.
+        If list, it combines the outputs of the multiple models.
 
     mat_morph : list of dict | None, default=[ \
             {'fun': cv.erode, \

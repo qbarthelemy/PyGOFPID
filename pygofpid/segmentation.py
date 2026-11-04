@@ -9,6 +9,7 @@ from .helpers import dist_euclidean
 
 
 class ForegroundEstimator(metaclass=ABCMeta):
+    """Base class for foreground segmentation."""
 
     BACKGROUND = 0
     FOREGROUND = 255
@@ -199,7 +200,8 @@ class MultipleForegroundEstimators(ForegroundEstimator):
     frg_methods : list of instances, default=None
         Foreground estimators.
     comb_method : callable, default=np.median
-        Method to combine outputs of estimators.
+        Method to combine outputs of estimators,
+        accepting ``axis`` and ``keepdims`` parameters.
     """
 
     def __init__(self, frg_methods=None, comb_method=np.median):
