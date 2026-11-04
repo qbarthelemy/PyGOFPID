@@ -22,7 +22,7 @@ from pygofpid.pipeline import GOFPID
 display = False
 
 # i-LIDS dataset path
-data_path = r'\\TODO\2006_ILIDS'
+data_path = r'//TODO/2006_ILIDS/'
 
 # videos in Disk_2-Testing
 video_names = [
@@ -89,9 +89,7 @@ def get_gofpid(view):
         data_path,
         'Disk_1-Training',
         'calibration',
-        'SZ',
-        view,
-        '_far.tif',
+        f'SZ{view}_far.tif',
     )
     config_frame = cv.imread(config_frame_filename, cv.IMREAD_GRAYSCALE)
 
