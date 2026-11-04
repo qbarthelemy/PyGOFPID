@@ -45,7 +45,7 @@ class FrameDifferencing(ForegroundEstimator):
     def apply(self, X):
         """Estimate foreground.
 
-        When there are multiple channels, the sum is calculated across the
+        When there are multiple channels, the mean is calculated across the
         various channels after thresholding.
 
         Parameters
@@ -136,13 +136,13 @@ class ViBe(ForegroundEstimator):
         F : ndarray of int, shape (n_height, n_width)
             Foreground frame.
         """
+        if self._rnd is None:
+            self._rnd = np.random.default_rng(seed=self.seed)
+
         n_height, n_width = X.shape[:2]
         if self._model is None:
             self._model = np.zeros((*X.shape, self.n_samples_per_pixel))
         self._F = np.zeros((n_height, n_width), dtype=np.uint8)
-
-        if self._rnd == None:
-            self._rnd = np.random.RandomState(seed=self.seed)
 
         for y in range(n_height):
             for x in range(n_width):
@@ -164,28 +164,28 @@ class ViBe(ForegroundEstimator):
             self._F[y, x] = self.BACKGROUND
 
             # update current pixel model
-            if self._get_random_int(0, self.subsampling_factor - 1) == 0:
-                r = self._get_random_int(0, self.n_samples_per_pixel - 1)
+            if self._get_random_int(0, self.subsampling_factor) == 0:
+                r = self._get_random_int(0, self.n_samples_per_pixel)
                 self._model[y, x, ..., r] = X[y, x]
 
             # update neighboring pixel model
-            if self._get_random_int(0, self.subsampling_factor - 1) == 0:
+            if self._get_random_int(0, self.subsampling_factor) == 0:
                 yn = self._get_random_coord(y, n_height)
                 xn = self._get_random_coord(x, n_width)
-                r = self._get_random_int(0, self.n_samples_per_pixel - 1)
+                r = self._get_random_int(0, self.n_samples_per_pixel)
                 self._model[yn, xn, ..., r] = X[y, x]
 
         else:
             self._F[y, x] = self.FOREGROUND
 
     def _get_random_int(self, low, high):
-        """Return a random integer."""
-        return self._rnd.randint(low, high)
+        """Return a random integer in [low, high)."""
+        return self._rnd.integers(low, high)
 
     def _get_random_coord(self, val, val_max):
-        """Return a random coord in the 8-connected neighborhood."""
+        """Return a random coord in the 8-connected neighborhood in [0, val_max)."""
         delta = self._rnd.choice([-1, 0, 1])
-        val_new = min(max(val + delta, 0), val_max - 1)
+        val_new = max(0, min(val_max - 1, val + delta))
         return val_new
 
 
