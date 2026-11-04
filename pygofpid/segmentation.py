@@ -151,7 +151,6 @@ class ViBe(ForegroundEstimator):
         for y in range(n_height):
             for x in range(n_width):
                 self._apply_pixel(X, y, x, n_height, n_width)
-
         return self._F
 
     def _init_model(self, X):
@@ -165,7 +164,7 @@ class ViBe(ForegroundEstimator):
             X[..., np.newaxis] + noise,
             self.BACKGROUND,
             self.FOREGROUND,
-        )
+        ).astype(np.uint8)
 
     def _apply_pixel(self, X, y, x, n_height, n_width):
         # compare pixel to background model
@@ -201,8 +200,8 @@ class ViBe(ForegroundEstimator):
     def _get_random_neighbor(self, y, x, n_height, n_width):
         """Return a random neighbor in the 8-connected neighborhood."""
         dy, dx = self.SHIFTS[self._rnd.integers(8)]
-        yn = np.clip(y + dy, 0, n_height - 1)
-        xn = np.clip(x + dx, 0, n_width - 1)
+        yn = max(0, min(y + dy, n_height - 1))
+        xn = max(0, min(x + dx, n_width - 1))
         return yn, xn
 
 
