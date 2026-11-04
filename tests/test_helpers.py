@@ -26,10 +26,10 @@ np.random.seed(17)
 ###############################################################################
 
 
-@pytest.mark.parametrize("filename_input", ["abc", "toto", "opngh"])
+@pytest.mark.parametrize("filename_input", ["abc", "toto", "abmpq"])
 @pytest.mark.parametrize("ext_new", ["png", "jpg"])
 def test_change_extension(filename_input, ext_new):
-    filename_output = change_extension(filename_input + ".foo", ext_new)
+    filename_output = change_extension(filename_input + ".bmp", ext_new)
     assert filename_output == filename_input + "." + ext_new
 
 

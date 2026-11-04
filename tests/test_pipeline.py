@@ -296,3 +296,68 @@ def test_gofpid_alarmdef(keep_alarm, duration_min):
     for _ in range(n_reps):
         img = np.random.randint(0, high=255, size=(64, 50), dtype=np.uint8)
         gofpid.detect(img)
+
+
+###############################################################################
+
+
+# perspective where a person has the size of the square, whatever its depth
+post_filter_square = {
+    'perimeter': perimeter,
+    'anchor': 'center',
+    'perspective': np.array(
+        [[0.1, 0.3], [0.25, 0.55], [0.6, 0.5], [0.75, 0.75]]
+    ),
+    'perspective_coeff': 0.5,
+    'presence_min': 3,
+    'distance_min': 0.25,
+}
+
+
+@pytest.mark.parametrize("frg_detect", ['MOG2', 'KNN', 'ViBe'])
+def test_gofpid_video_no_intrusion(get_video, frg_detect):
+    """Test no alarm is raised on a video without intrusion."""
+    frames, _ = get_video(with_square=False)
+    gofpid = GOFPID(
+        frg_detect=frg_detect,
+        post_filter=post_filter_square,
+    ).initialize()
+
+    assert not any(gofpid.detect(frame) for frame in frames)
+
+
+@pytest.mark.parametrize("frg_detect", ['MOG2', 'KNN', 'ViBe'])
+@pytest.mark.parametrize("size", [(53, 67), (50, 64, 1), (48, 60, 3)])
+def test_gofpid_video_intrusion(get_video, frg_detect, size):
+    """Test intrusion detection on a video where a square crosses the frame."""
+    frames, boxes = get_video(size=size)
+    gofpid = GOFPID(
+        frg_detect=frg_detect,
+        post_filter=post_filter_square,
+    ).initialize()
+
+    y = [gofpid.detect(frame) for frame in frames]
+
+    assert not any(y_ for y_, box in zip(y, boxes) if box is None), \
+        'alarm raised without intrusion'
+    assert any(y), 'intrusion not detected'
+    i_first_square = next(i for i, box in enumerate(boxes) if box is not None)
+    assert y.index(True) <= i_first_square + 5, 'intrusion detected too late'
+
+
+def test_gofpid_square_perimeter(get_video):
+    """Test alarm is raised only when the square enters the perimeter."""
+    n_width = 64
+    frames, boxes = get_video(size=(48, n_width))
+    post_filter = post_filter_square.copy()
+    post_filter['perimeter'] = np.array(
+        [[0.5, 0], [0.5, 1], [1, 1], [1, 0]]  # right half of frame
+    )
+    gofpid = GOFPID(post_filter=post_filter).initialize()
+
+    y = [gofpid.detect(frame) for frame in frames]
+
+    assert any(y), 'intrusion not detected'
+    box = boxes[y.index(True)]
+    center_x = (box[0] + box[2]) / 2
+    assert center_x >= n_width / 2, 'alarm raised outside perimeter'
