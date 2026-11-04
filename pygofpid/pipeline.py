@@ -79,7 +79,7 @@ class GOFPID():
 
     post_filter : dict, default={ \
             'perimeter': None, \
-            'anchor_point': 'bottom', \
+            'anchor': 'bottom', \
             'perspective': None, \
             'perspective_coeff': 0.5, \
             'presence_min': 3, \
@@ -130,7 +130,7 @@ class GOFPID():
 
     Attributes
     ----------
-    foreground_mask_ : ndarray of int, shape (n_height, n_width, n_color)
+    foreground_mask_ : ndarray of int, shape (n_height, n_width)
         Foreground mask.
 
     blobs_ : list of dict
@@ -150,7 +150,7 @@ class GOFPID():
         - center_first: center point of tracked blob when created;
         - presence: presence count;
         - absence: absence count;
-        - filter: types of post-filtering (perimeter, perspective, presence,
+        - filtered: types of post-filtering (perimeter, perspective, presence,
           distance);
         - already_in_alarm: boolean defining if a tracked object has already
           been in alarm at least once.
@@ -464,7 +464,7 @@ class GOFPID():
 
         Returns
         -------
-        y : int
+        y : bool
             Prediction of intrusion: 1 if intrusion detected, 0 otherwise.
         """
 

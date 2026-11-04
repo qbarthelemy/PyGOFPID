@@ -52,7 +52,7 @@ def test_segmentation(frg_detector, size):
 
 @pytest.mark.parametrize("comb_method", [np.median, np.mean])
 @pytest.mark.parametrize("size", [(12, 28), (28, 16, 1), (12, 16, 3)])
-def test_multiple_foreground_estimpators(comb_method, size):
+def test_multiple_foreground_estimators(comb_method, size):
     fd = MultipleForegroundEstimators(
         frg_methods = [
             cv.createBackgroundSubtractorKNN(),

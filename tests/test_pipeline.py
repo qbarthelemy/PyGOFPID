@@ -29,6 +29,21 @@ alarm_def = {
 ###############################################################################
 
 
+def test_gofpid():
+    gofpid = GOFPID().initialize()
+    assert isinstance(gofpid, GOFPID)
+
+    size = (64, 64, 3)
+    for _ in range(10):
+        img = np.random.randint(0, high=255, size=size, dtype=np.uint8)
+        y = gofpid.detect(img)
+
+    assert isinstance(y, bool)
+    assert gofpid.foreground_mask_.shape == size[:2]
+    assert isinstance(gofpid.blobs_, list)
+    assert isinstance(gofpid.tracked_blobs_, list)
+
+
 def test_gofpid_errors():
     """Test GOFPID errors."""
     gofpid = GOFPID(
