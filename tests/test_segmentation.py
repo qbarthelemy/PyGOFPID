@@ -45,10 +45,9 @@ def test_segmentation(frg_detector, size):
         out = fd.apply(img)
         assert out.shape == size[:2]
         assert out.dtype == np.uint8
-        if frg_detector == MultipleForegroundEstimators or \
-                frg_detector == FrameDifferencing and len(size) > 2:
+        if frg_detector == MultipleForegroundEstimators:
             return
-        assert np.all(np.isin(out, [0, 127, 255]))
+        assert np.all(np.isin(out, [0, 85, 127, 170, 255]))
 
 
 @pytest.mark.parametrize("comb_method", [np.median, np.mean])

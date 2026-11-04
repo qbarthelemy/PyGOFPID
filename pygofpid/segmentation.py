@@ -44,6 +44,9 @@ class FrameDifferencing(ForegroundEstimator):
     def apply(self, X):
         """Estimate foreground.
 
+        When there are multiple channels, the sum is calculated across the
+        various channels after thresholding.
+
         Parameters
         ----------
         X : ndarray of int, shape (n_height, n_width) or \
@@ -69,7 +72,7 @@ class FrameDifferencing(ForegroundEstimator):
 
         self._model = X
         if F.ndim > 2:
-            F = np.mean(F, axis=-1, dtype=np.uint8, keepdims=False)
+            F = np.mean(F, axis=-1, keepdims=False).astype(np.uint8)
 
         return F
 
