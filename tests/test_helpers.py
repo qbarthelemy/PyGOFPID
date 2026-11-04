@@ -1,5 +1,5 @@
 import numpy as np
-from numpy.testing import assert_almost_equal
+from numpy.testing import assert_almost_equal, assert_array_equal
 import pytest
 from pytest import approx
 
@@ -8,8 +8,6 @@ from pygofpid.helpers import (
     plot_lines,
     plot_rectangles,
     plot_squares,
-    find_point,
-    find_line,
     find_contours,
     get_bottom,
     get_center,
@@ -40,28 +38,6 @@ def test_plots(fun):
     points = np.array([[10, 40], [20, 80], [80, 20], [85, 30]])
     thickness = np.array([5, 5])
     fun(X, points, thickness)
-
-
-@pytest.mark.parametrize(
-    "coord, gt",
-    [([11, 51], 0), ([13, 53], -1), ([87, 33], 3), ([128, 64], -1)],
-)
-def test_find_point(coord, gt):
-    """Test find_point."""
-    points = [[10, 50], [20, 90], [80, 20], [85, 35]]
-    thickness = [2, 2]
-    assert find_point(coord, points, thickness) == gt
-
-
-@pytest.mark.parametrize(
-    "coord, gt",
-    [([10, 30], 0), ([11, 30], 0), ([13, 30], -1), ([50, 30], 2)],
-)
-def test_find_line(coord, gt):
-    """Test find_line."""
-    points = [[10, 10], [10, 50], [50, 50], [50, 10]]
-    thickness = [2, 2]
-    assert find_line(coord, points, thickness) == gt
 
 
 def test_find_contours():
@@ -106,6 +82,15 @@ def test_unnormalize_coords(gt, ncoords):
     """Test unnormalize_coords."""
     coords = unnormalize_coords([ncoords], [128, 128])[0]
     assert gt == approx(coords)
+
+
+@pytest.mark.parametrize("fun", [normalize_coords, unnormalize_coords])
+def test_coords_input_unchanged(fun):
+    """Test (un)normalize_coords do not modify a float input."""
+    coords = np.array([[0.25, 0.5], [16., 128.]])
+    coords_copy = coords.copy()
+    fun(coords, [128, 128])
+    assert_array_equal(coords, coords_copy)
 
 
 def test_dist_euclidean_scalars():

@@ -4,16 +4,12 @@ from copy import deepcopy
 import cv2 as cv
 import numpy as np
 
+from .config import config_perimeter, config_perspective
 from .helpers import (
     read_first_frame,
-    plot_lines,
-    plot_rectangles,
     get_bottom,
     get_center,
-    find_point,
-    find_line,
     find_contours,
-    normalize_coords,
     unnormalize_coords,
     SimpleLinearRegression,
 )
@@ -329,54 +325,11 @@ class GOFPID():
             raise ValueError('Unknown type for parameter "perimeter".')
 
         if self._post_filter.get('display_config'):
-            self._post_filter['perimeter'] = self._config_perimeter()
-
-    def _config_perimeter(self, window_name="Configure perimeter"):
-        """Display window to configure perimeter."""
-
-        img, clone, thickness = self._get_config_img()
-
-        points = unnormalize_coords(
-            self._post_filter['perimeter'],
-            img.shape,
-        ).tolist()
-
-        def move_line(event, x, y, flags, params):
-            global i_point, i_line
-            if event == cv.EVENT_LBUTTONDOWN:
-                i_point = find_point((x, y), points, thickness)
-            elif event == cv.EVENT_LBUTTONUP and i_point >= 0:
-                points[i_point] = [x, y]
-            elif event == cv.EVENT_RBUTTONDOWN:
-                i_point = find_point((x, y), points, thickness)
-                i_line = find_line((x, y), points, thickness)
-            elif event == cv.EVENT_RBUTTONUP:
-                if i_point >= 0:
-                    points.pop(i_point)
-                elif i_line >= 0:
-                    points.insert(i_line + 1, [x, y])
-
-        cv.namedWindow(window_name)
-        cv.setMouseCallback(window_name, move_line)
-        while True:
-            img = clone.copy()
-            plot_lines(img, points, thickness)
-            cv.imshow(window_name, img)
-            key = cv.waitKey(1) & 0xFF
-            if key == ord("r"):  # 'r' key => reset window
-                img = clone.copy()
-                points = unnormalize_coords(
-                    np.array([[0, 0], [0, 1], [1, 1], [1, 0]]),
-                    img.shape,
-                ).tolist()
-            elif key == ord("c"):  # 'c' key => close
-                cv.destroyWindow(window_name)
-                break
-
-        perimeter = normalize_coords(points, img.shape)
-        if self.verbose:
-            print("Config perimeter:\n", perimeter)
-        return perimeter
+            self._post_filter['perimeter'] = config_perimeter(
+                self._get_config_img(),
+                self._post_filter['perimeter'],
+                verbose=self.verbose,
+            )
 
     def _check_perspective(self):
         """Check parameter perspective."""
@@ -396,43 +349,15 @@ class GOFPID():
             raise ValueError('Unknown type for parameter "perspective".')
 
         if self._post_filter.get('display_config'):
-            self._post_filter['perspective'] = self._config_perspective()
-
-    def _config_perspective(self, window_name="Configure perspective"):
-        """Display window to configure perspective."""
-
-        img, clone, thickness = self._get_config_img()
-
-        points = unnormalize_coords(
-            self._post_filter['perspective'],
-            img.shape,
-            dtype=np.int32,
-        )
-
-        def move_rectangle(event, x, y, flags, params):
-            global i_point
-            if event == cv.EVENT_LBUTTONDOWN:
-                i_point = find_point((x, y), points, thickness)
-            elif event == cv.EVENT_LBUTTONUP and i_point >= 0:
-                points[i_point] = [x, y]
-
-        cv.namedWindow(window_name)
-        cv.setMouseCallback(window_name, move_rectangle)
-        while True:
-            img = clone.copy()
-            plot_rectangles(img, points, thickness)
-            cv.imshow(window_name, img)
-            key = cv.waitKey(1) & 0xFF
-            if key == ord("c"):  # 'c' key => close
-                cv.destroyWindow(window_name)
-                break
-
-        perspective = normalize_coords(points, img.shape)
-        if self.verbose:
-            print("Config perspective:\n", perspective)
-        return perspective
+            self._post_filter['perspective'] = config_perspective(
+                self._get_config_img(),
+                self._post_filter['perspective'],
+                verbose=self.verbose,
+            )
 
     def _get_config_img(self):
+        """Get image displayed to configure perimeter and perspective."""
+
         if 'config_video_filename' in self._post_filter.keys():
             img = read_first_frame(self._post_filter['config_video_filename'])
         elif 'config_frame_filename' in self._post_filter.keys():
@@ -447,15 +372,7 @@ class GOFPID():
         if img is None:
             raise ValueError('Configuration image is None.')
 
-        clone = img.copy()
-
-        thickness = unnormalize_coords(
-            np.array([[0.02, 0.02]]),
-            img.shape,
-            dtype=np.int32,
-        )[0]
-
-        return img, clone, thickness
+        return img
 
     def detect(self, X):
         """Detect if there is an intrusion in the current frame.

@@ -41,86 +41,6 @@ def plot_squares(X, points, thickness, c=(0, 0, 255)):
         cv.rectangle(X, point - thickness, point + thickness, c, -1)
 
 
-def find_point(coord, points, thickness):
-    """Find the point selected by coordinates.
-
-    Parameters
-    ----------
-    coord : ndarray, shape (2,)
-        Input coordinates.
-    points : ndarray, shape (n_points, 2)
-        Points.
-    thickness : ndarray, shape (2,)
-        Thickness of points.
-
-    Returns
-    -------
-    i : int
-        Index of selected point.
-    """
-
-    for i, point in enumerate(points):
-        if cv.pointPolygonTest(
-            np.array([
-                [point[0] - thickness[0], point[1] - thickness[1]],
-                [point[0] - thickness[0], point[1] + thickness[1]],
-                [point[0] + thickness[0], point[1] + thickness[1]],
-                [point[0] + thickness[0], point[1] - thickness[1]],
-            ]),
-            coord,
-            False,
-        ) >= 0:
-            return i
-    else:
-        return -1
-
-
-def find_line(coord, points, thickness):
-    """Find the line selected by coordinates.
-
-    Parameters
-    ----------
-    coord : ndarray, shape (2,)
-        Input coordinates.
-    points : ndarray, shape (n_points, 2)
-        Points defining lines.
-    thickness : ndarray, shape (2,)
-        Thickness of lines.
-
-    Returns
-    -------
-    i : int
-        Index of selected line.
-    """
-
-    n_points = len(points)
-    if n_points < 2:
-        return -1
-    points = np.asarray(points)
-    for i in range(n_points):
-        middle = (points[i % n_points] + points[(i+1) % n_points]) / 2
-        normal_vector = points[(i+1) % n_points] - points[i % n_points]
-        normal_vector = normal_vector / cv.norm(normal_vector)
-        if cv.pointPolygonTest(
-            np.array(
-                [
-                    [points[i % n_points][0], points[i % n_points][1]],
-                    [middle[0] - normal_vector[1] * thickness[0],
-                     middle[1] + normal_vector[0] * thickness[1]],
-                    [points[(i+1) % n_points][0], points[(i+1) % n_points][1]],
-                    [middle[0] + normal_vector[1] * thickness[0],
-                     middle[1] - normal_vector[0] * thickness[1]],
-                ],
-                dtype=np.int32,
-            ),
-            coord,
-            False,
-        ) >= 0:
-            return i
-    else:
-        return -1
-
-
 def find_contours(mask):
     """Find contours in a binary mask.
 
@@ -166,7 +86,7 @@ def get_center(contour, dtype=np.int16):
 def normalize_coords(coords, shape, dtype=np.float64):
     """Transform image coords (x,y) into normalized coords in [0,1]."""
 
-    ncoords = np.asarray(coords, dtype=dtype)
+    ncoords = np.array(coords, dtype=dtype)
     ncoords[..., 0] /= shape[1]
     ncoords[..., 1] /= shape[0]
     return ncoords
@@ -175,7 +95,7 @@ def normalize_coords(coords, shape, dtype=np.float64):
 def unnormalize_coords(ncoords, shape, dtype=np.uint16):
     """Transform normalized coords (x,y) in [0,1] into image coords."""
 
-    coords = np.asarray(ncoords, dtype=np.float64)
+    coords = np.array(ncoords, dtype=np.float64)
     coords[..., 0] *= shape[1]
     coords[..., 1] *= shape[0]
     return coords.astype(dtype)
