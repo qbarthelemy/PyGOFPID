@@ -685,21 +685,18 @@ class GOFPID():
         radius_maj, radius_min = self._compute_tracking_space(tracked_blob_btm)
 
         tracked_blob_ctr = self.tracked_blobs_[i_tracked_blob]['center']
-        blob_center = self.blobs_[i_blob]['center']
-
-        if radius_maj <= 0 or radius_min <= 0:
-            return 0
+        blob_center = self.blobs_[i_blob]['center'].astype(float)
 
         dist = (blob_center[0] - tracked_blob_ctr[0])**2 / radius_maj**2 \
             + (blob_center[1] - tracked_blob_ctr[1])**2 / radius_min**2
         return dist
 
-    def _compute_tracking_space(self, bottom):
+    def _compute_tracking_space(self, bottom, radius_major_min=3):
         """Compute major and minor radii of the ellipse of tracking space."""
 
         height_min = self._predict_perspective('height', bottom[1])
-        radius_major = np.int32(height_min * self.tracking['factor'])
-        radius_minor = np.int32(radius_major / 2)
+        radius_major = max(height_min * self.tracking['factor'], radius_major_min)
+        radius_minor = radius_major / 2
         return radius_major, radius_minor
 
     def _update_paired_tracked_blob(self, i_tracked_blob, i_blob):
@@ -868,7 +865,7 @@ class GOFPID():
     def _display_tracking(self, X, bottom, center, color):
         """Display tracking space."""
         radius_maj, radius_min = self._compute_tracking_space(bottom)
-        cv.ellipse(X, center, [radius_maj, radius_min], 0, 0, 360, color, 1)
+        cv.ellipse(X, center, [int(radius_maj), int(radius_min)], 0, 0, 360, color, 1)
 
     def _display_perspective(self, X, bottom, color):
         """Display perspective."""
