@@ -14,7 +14,7 @@ def read_first_frame(video_filename):
 
     vidcap = cv.VideoCapture(video_filename)
     if not vidcap.isOpened():
-        raise ValueError("Unable to open video %s." % video_filename)
+        raise ValueError(f"Unable to open video {video_filename}.")
     _, frame = vidcap.read()
     vidcap.release()
     frame_filename = change_extension(video_filename)
@@ -126,7 +126,7 @@ def find_contours(mask):
 
     Parameters
     ----------
-    mask : ndarray of int, shape (n_height, n_width, n_color)
+    mask : ndarray of int, shape (n_height, n_width)
         Binary mask.
 
     Returns
@@ -140,12 +140,8 @@ def find_contours(mask):
         mode=cv.RETR_EXTERNAL,
         method=cv.CHAIN_APPROX_NONE,
     )
-
-    if cv.__version__ < "4.0.0":
-        _, contours, _ = outs
-    else:
-        contours, _ = outs
-
+    # OpenCV 3 returns 3 values, OpenCV 4 returns 2
+    contours = outs[-2]
     return contours
 
 

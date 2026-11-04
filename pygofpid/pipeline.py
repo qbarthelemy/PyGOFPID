@@ -306,7 +306,7 @@ class GOFPID():
         else:
             raise ValueError('Parameter foreground detection must be a '
                              'string, a callable or a list '
-                             f'(Got {type(self.frg_detect)}).')
+                             f'(Got {type(param)}).')
 
     def _check_perimeter(self):
         """Check parameter perimeter."""
