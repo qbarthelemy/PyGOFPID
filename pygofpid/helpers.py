@@ -1,13 +1,12 @@
 """Helpers."""
+import os
 
 import cv2 as cv
 import numpy as np
 
 
 def change_extension(filename_input, ext_new="png"):
-    ext_old = filename_input.split('.')[-1]
-    filename_output = filename_input.replace(ext_old, ext_new)
-    return filename_output
+    return os.path.splitext(filename_input)[0] + "." + ext_new
 
 
 def read_first_frame(video_filename):

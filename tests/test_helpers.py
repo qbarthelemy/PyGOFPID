@@ -4,6 +4,7 @@ import pytest
 from pytest import approx
 
 from pygofpid.helpers import (
+    change_extension,
     plot_lines,
     plot_rectangles,
     plot_squares,
@@ -23,6 +24,13 @@ np.random.seed(17)
 
 
 ###############################################################################
+
+
+@pytest.mark.parametrize("filename_input", ["abc", "toto", "opngh"])
+@pytest.mark.parametrize("ext_new", ["png", "jpg"])
+def test_change_extension(filename_input, ext_new):
+    filename_output = change_extension(filename_input + ".foo", ext_new)
+    assert filename_output == filename_input + "." + ext_new
 
 
 @pytest.mark.parametrize("fun", [plot_lines, plot_rectangles, plot_squares])
