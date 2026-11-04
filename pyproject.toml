@@ -11,16 +11,15 @@ classifiers = [
     "Programming Language :: Python :: 3 :: Only",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Scientific/Engineering",
-    "Topic :: Computer Vision",
 ]
 packages = [
     { include = "pygofpid" },
 ]
 
 [tool.poetry.dependencies]
-python = "^3.8"
-numpy = "^1.7.0"
-opencv-python = "^3.4.0"
+python = "^3.10"
+numpy = "^2.0.0"
+opencv-python = "^4.11"
 
 [tool.poetry.dev-dependencies]
 pytest = "^3.0"

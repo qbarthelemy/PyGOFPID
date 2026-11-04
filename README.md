@@ -1,7 +1,7 @@
 # PyGOFPID
 
-[![Code PythonVersion](https://img.shields.io/badge/python-3.8+-blue)](https://img.shields.io/badge/python-3.7+-blue)
-[![License](https://img.shields.io/badge/licence-BSD--3--Clause-green)](https://img.shields.io/badge/license-BSD--3--Clause-green)
+[![Code PythonVersion](https://img.shields.io/badge/python-3.10-blue)](https://img.shields.io/badge/python-3.10-blue)
+[![License](https://img.shields.io/badge/license-BSD--3--Clause-green)](https://img.shields.io/badge/license-BSD--3--Clause-green)
 
 PyGOFPID is a Python package implementing
 [perimeter intrusion detection (PID)](https://www.mdpi.com/1424-8220/22/9/3601)

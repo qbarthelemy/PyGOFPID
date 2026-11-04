@@ -8,10 +8,10 @@ setup(
     author='Quentin Barthelemy',
     url='https://github.com/qbarthelemy/PyGOFPID',
     packages=find_packages(),
-    python_requires=">=3.8,<4.0",
+    python_requires=">=3.10",
     install_requires=[
-        "numpy>=1.7.0,<2.0.0",
-        "opencv-python>=3.4.0,<4.0.0",
+        "numpy>=2.0.0",
+        "opencv-python>=4.11",
     ],
     extras_require={
         "tests": [
