@@ -374,6 +374,26 @@ class GOFPID():
 
         return img
 
+    def reset(self):
+        """Reset models and tracking, keeping configuration.
+
+        Useful when video stream is interrupted.
+
+        Returns
+        -------
+        self : object
+            Initialized instance.
+        """
+        self._frg_detect_mth = self._initialize_frg_detect(self.frg_detect)
+        self.blobs_ = []
+        self.tracked_blobs_ = []
+        self.foreground_mask_ = None
+        self._alarm_system = {
+            'already_in_alarm': False,
+            'duration': 0,
+        }
+        return self
+
     def detect(self, X):
         """Detect if there is an intrusion in the current frame.
 

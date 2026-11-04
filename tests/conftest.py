@@ -12,6 +12,7 @@ def get_video():
         square_size=12,
         speed=2,
         with_square=True,
+        bkg_value=100,
         seed=17,
     ):
         """Generate a video where a bright square crosses from left to right.
@@ -34,6 +35,8 @@ def get_video():
             pixels.
         with_square : bool, default=True
             If False, the square is not drawn, giving a background video.
+        bkg_value : int, default=100
+            Gray level of the background.
         seed : int, default=17
             Random seed for the background noise.
 
@@ -53,7 +56,8 @@ def get_video():
         frames, boxes = [], []
         for i in range(n_frames_bkg + len(x_mins)):
             noise = rnd.normal(scale=1, size=size)
-            frame = np.clip(np.rint(100 + noise), 0, 255).astype(np.uint8)
+            frame = np.clip(np.rint(bkg_value + noise), 0, 255)
+            frame = frame.astype(np.uint8)
             box = None
             if with_square and i >= n_frames_bkg:
                 x_min = x_mins[i - n_frames_bkg]

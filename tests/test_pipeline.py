@@ -1,5 +1,6 @@
 import cv2 as cv
 import numpy as np
+from numpy.testing import assert_array_equal
 import pytest
 
 from pygofpid.segmentation import FrameDifferencing as FD
@@ -361,3 +362,59 @@ def test_gofpid_square_perimeter(get_video):
     box = boxes[y.index(True)]
     center_x = (box[0] + box[2]) / 2
     assert center_x >= n_width / 2, 'alarm raised outside perimeter'
+
+
+def test_gofpid_reset(get_video):
+    """Test reset empties models and tracking, keeping configuration."""
+    frames, _ = get_video()
+    gofpid = GOFPID(post_filter=post_filter_square).initialize()
+    y = [gofpid.detect(frame) for frame in frames]
+    assert y[-1], 'intrusion not detected before reset'
+
+    frg_detect_mth = gofpid._frg_detect_mth
+    perimeter = gofpid._post_filter['perimeter'].copy()
+    perspective = gofpid._post_filter['perspective'].copy()
+    input_shape = gofpid.input_shape_
+
+    assert gofpid.reset() is gofpid
+    assert gofpid._frg_detect_mth is not frg_detect_mth
+    assert gofpid.blobs_ == []
+    assert gofpid.tracked_blobs_ == []
+    assert gofpid.foreground_mask_ is None
+    assert gofpid._alarm_system == {'already_in_alarm': False, 'duration': 0}
+
+    # configuration is kept, already in pixels
+    assert_array_equal(gofpid._post_filter['perimeter'], perimeter)
+    assert_array_equal(gofpid._post_filter['perspective'], perspective)
+    assert gofpid.input_shape_ == input_shape
+
+    # input shape is still checked
+    with pytest.raises(ValueError):
+        gofpid.detect(np.zeros((32, 32), dtype=np.uint8))
+
+
+@pytest.mark.parametrize("frg_detect", ['MOG2', 'KNN', 'ViBe'])
+def test_gofpid_reset_stream_interrupted(get_video, frg_detect):
+    """Test reset when video stream is interrupted and restarts on a new
+    scene: no false alarm on new background, and intrusion still detected.
+    Without reset, alarm is maintained on new background, and ViBe never
+    detects intrusion since its model is not updated on foreground pixels.
+    """
+    frames1, _ = get_video()
+    frames2, boxes2 = get_video(bkg_value=160, seed=3)
+    gofpid = GOFPID(
+        frg_detect=frg_detect,
+        post_filter=post_filter_square,
+    ).initialize()
+
+    y1 = [gofpid.detect(frame) for frame in frames1]
+    assert y1[-1], 'intrusion not detected before interruption'
+
+    gofpid.reset()
+    y2 = [gofpid.detect(frame) for frame in frames2]
+
+    assert not any(y_ for y_, box in zip(y2, boxes2) if box is None), \
+        'alarm raised without intrusion after reset'
+    i_first_square = next(i for i, box in enumerate(boxes2) if box is not None)
+    assert True in y2, 'intrusion not detected after reset'
+    assert y2.index(True) <= i_first_square + 5, 'intrusion detected too late'
