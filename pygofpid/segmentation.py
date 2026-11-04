@@ -106,6 +106,8 @@ class ViBe(ForegroundEstimator):
         IEEE Trans Image Process, 2010.
     """
 
+    SHIFTS = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
+
     def __init__(
         self,
         n_samples_per_pixel=20,
@@ -140,15 +142,30 @@ class ViBe(ForegroundEstimator):
             self._rnd = np.random.default_rng(seed=self.seed)
 
         n_height, n_width = X.shape[:2]
-        if self._model is None:
-            self._model = np.zeros((*X.shape, self.n_samples_per_pixel))
         self._F = np.zeros((n_height, n_width), dtype=np.uint8)
+
+        if self._model is None:
+            self._init_model(X)
+            return self._F
 
         for y in range(n_height):
             for x in range(n_width):
                 self._apply_pixel(X, y, x, n_height, n_width)
 
         return self._F
+
+    def _init_model(self, X):
+        """Initialize model: first frame plus a Gaussian noise."""
+        n_channels = X.shape[2] if X.ndim > 2 else 1
+        noise = self._rnd.normal(
+            scale=self.sphere_radius / (2 * np.sqrt(n_channels)),
+            size=(*X.shape, self.n_samples_per_pixel),
+        )
+        self._model = np.clip(
+            X[..., np.newaxis] + noise,
+            self.BACKGROUND,
+            self.FOREGROUND,
+        )
 
     def _apply_pixel(self, X, y, x, n_height, n_width):
         # compare pixel to background model
@@ -170,8 +187,7 @@ class ViBe(ForegroundEstimator):
 
             # update neighboring pixel model
             if self._get_random_int(0, self.subsampling_factor) == 0:
-                yn = self._get_random_coord(y, n_height)
-                xn = self._get_random_coord(x, n_width)
+                yn, xn = self._get_random_neighbor(y, x, n_height, n_width)
                 r = self._get_random_int(0, self.n_samples_per_pixel)
                 self._model[yn, xn, ..., r] = X[y, x]
 
@@ -182,11 +198,12 @@ class ViBe(ForegroundEstimator):
         """Return a random integer in [low, high)."""
         return self._rnd.integers(low, high)
 
-    def _get_random_coord(self, val, val_max):
-        """Return a random coord in the 8-connected neighborhood in [0, val_max)."""
-        delta = self._rnd.choice([-1, 0, 1])
-        val_new = max(0, min(val_max - 1, val + delta))
-        return val_new
+    def _get_random_neighbor(self, y, x, n_height, n_width):
+        """Return a random neighbor in the 8-connected neighborhood."""
+        dy, dx = self.SHIFTS[self._rnd.integers(8)]
+        yn = np.clip(y + dy, 0, n_height - 1)
+        xn = np.clip(x + dx, 0, n_width - 1)
+        return yn, xn
 
 
 ###############################################################################
