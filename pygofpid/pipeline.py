@@ -1,4 +1,5 @@
 """Pipeline for perimeter intrusion detection."""
+from copy import deepcopy
 
 import cv2 as cv
 import numpy as np
@@ -222,18 +223,20 @@ class GOFPID():
             Initialized instance.
         """
 
-        if self.blur:
-            if 'fun' not in self.blur.keys():
+        self._blur = deepcopy(self.blur)
+        if self._blur:
+            if 'fun' not in self._blur.keys():
                 raise KeyError('Parameter blur has no key "fun".')
-            if 'ksize' not in self.blur.keys():
-                self.blur['ksize'] = (3, 3)
-            if 'borderType' not in self.blur.keys():
-                self.blur['borderType'] = cv.BORDER_DEFAULT
+            if 'ksize' not in self._blur.keys():
+                self._blur['ksize'] = (3, 3)
+            if 'borderType' not in self._blur.keys():
+                self._blur['borderType'] = cv.BORDER_DEFAULT
 
         self._frg_detect_mth = self._initialize_frg_detect(self.frg_detect)
 
-        if self.mat_morph:
-            for d in self.mat_morph:
+        self._mat_morph = deepcopy(self.mat_morph)
+        if self._mat_morph:
+            for d in self._mat_morph:
                 if 'fun' not in d.keys():
                     raise KeyError('Parameter mat_morph has no key "fun".')
                 if 'kernel' not in d.keys():
@@ -247,16 +250,17 @@ class GOFPID():
         if 'absence_max' not in self.tracking.keys():
             raise KeyError('Parameter tracking has no key "absence_max".')
 
-        if 'anchor' not in self.post_filter.keys():
+        self._post_filter = deepcopy(self.post_filter)
+        if 'anchor' not in self._post_filter.keys():
             raise KeyError('Parameter post_filter has no key "anchor".')
-        if self.post_filter['anchor'] not in ['bottom', 'center']:
+        if self._post_filter['anchor'] not in ['bottom', 'center']:
             raise ValueError('Parameter anchor must be "bottom" or "center".')
-        if 'perspective_coeff' not in self.post_filter.keys():
+        if 'perspective_coeff' not in self._post_filter.keys():
             raise KeyError(
                 'Parameter post_filter has no key "perspective_coeff".')
-        if 'presence_min' not in self.post_filter.keys():
+        if 'presence_min' not in self._post_filter.keys():
             raise KeyError('Parameter post_filter has no key "presence_min".')
-        if 'distance_min' not in self.post_filter.keys():
+        if 'distance_min' not in self._post_filter.keys():
             raise KeyError('Parameter post_filter has no key "distance_min".')
         self._check_perimeter()
         self._check_perspective()
@@ -307,25 +311,25 @@ class GOFPID():
     def _check_perimeter(self):
         """Check parameter perimeter."""
 
-        if 'perimeter' not in self.post_filter.keys():
+        if 'perimeter' not in self._post_filter.keys():
             raise KeyError('Parameter post_filter has no key "perimeter".')
 
-        if self.post_filter['perimeter'] is None:
-            self.post_filter['perimeter'] = np.array(
+        if self._post_filter['perimeter'] is None:
+            self._post_filter['perimeter'] = np.array(
                 [[0, 0], [0, 1], [1, 1], [1, 0]]
             )
-        elif isinstance(self.post_filter['perimeter'], np.ndarray):
-            if self.post_filter['perimeter'].ndim != 2:
+        elif isinstance(self._post_filter['perimeter'], np.ndarray):
+            if self._post_filter['perimeter'].ndim != 2:
                 raise ValueError('Parameter perimeter has not the good shape.')
-            if self.post_filter['perimeter'].shape[0] < 3:
+            if self._post_filter['perimeter'].shape[0] < 3:
                 raise ValueError('Parameter perimeter has not enough points.')
-            if self.post_filter['perimeter'].shape[1] != 2:
+            if self._post_filter['perimeter'].shape[1] != 2:
                 raise ValueError('Parameter perimeter has not the good shape.')
         else:
             raise ValueError('Unknown type for parameter "perimeter".')
 
-        if self.post_filter.get('display_config'):
-            self.post_filter['perimeter'] = self._config_perimeter()
+        if self._post_filter.get('display_config'):
+            self._post_filter['perimeter'] = self._config_perimeter()
 
     def _config_perimeter(self, window_name="Configure perimeter"):
         """Display window to configure perimeter."""
@@ -333,7 +337,7 @@ class GOFPID():
         img, clone, thickness = self._get_config_img()
 
         points = unnormalize_coords(
-            self.post_filter['perimeter'],
+            self._post_filter['perimeter'],
             img.shape,
         ).tolist()
 
@@ -377,22 +381,22 @@ class GOFPID():
     def _check_perspective(self):
         """Check parameter perspective."""
 
-        if 'perspective' not in self.post_filter.keys():
+        if 'perspective' not in self._post_filter.keys():
             raise KeyError('Parameter post_filter has no key "perspective".')
 
-        if self.post_filter['perspective'] is None:
-            self.post_filter['perspective'] = np.array(
+        if self._post_filter['perspective'] is None:
+            self._post_filter['perspective'] = np.array(
                 [[0.1, 0.4], [0.2, 0.8], [0.8, 0.2], [0.85, 0.3]]
             )
-        elif isinstance(self.post_filter['perspective'], np.ndarray):
-            if self.post_filter['perspective'].shape != (4, 2):
+        elif isinstance(self._post_filter['perspective'], np.ndarray):
+            if self._post_filter['perspective'].shape != (4, 2):
                 raise ValueError(
                     'Parameter perspective has not the good shape.')
         else:
             raise ValueError('Unknown type for parameter "perspective".')
 
-        if self.post_filter.get('display_config'):
-            self.post_filter['perspective'] = self._config_perspective()
+        if self._post_filter.get('display_config'):
+            self._post_filter['perspective'] = self._config_perspective()
 
     def _config_perspective(self, window_name="Configure perspective"):
         """Display window to configure perspective."""
@@ -400,7 +404,7 @@ class GOFPID():
         img, clone, thickness = self._get_config_img()
 
         points = unnormalize_coords(
-            self.post_filter['perspective'],
+            self._post_filter['perspective'],
             img.shape,
             dtype=np.int32,
         )
@@ -429,12 +433,12 @@ class GOFPID():
         return perspective
 
     def _get_config_img(self):
-        if 'config_video_filename' in self.post_filter.keys():
-            img = read_first_frame(self.post_filter['config_video_filename'])
-        elif 'config_frame_filename' in self.post_filter.keys():
-            img = cv.imread(self.post_filter['config_frame_filename'])
-        elif 'config_frame' in self.post_filter.keys():
-            img = self.post_filter['config_frame']
+        if 'config_video_filename' in self._post_filter.keys():
+            img = read_first_frame(self._post_filter['config_video_filename'])
+        elif 'config_frame_filename' in self._post_filter.keys():
+            img = cv.imread(self._post_filter['config_frame_filename'])
+        elif 'config_frame' in self._post_filter.keys():
+            img = self._post_filter['config_frame']
         else:
             if self.verbose:
                 print("No configuration video or frame defined.")
@@ -481,19 +485,19 @@ class GOFPID():
             X = cv.cvtColor(X, self.convert)
 
         # input frame denoising by spatial blurring
-        if self.blur:
-            X = self.blur.get('fun')(
+        if self._blur:
+            X = self._blur.get('fun')(
                 X,
-                self.blur.get('ksize'),
-                self.blur.get('borderType'),
+                self._blur.get('ksize'),
+                self._blur.get('borderType'),
             )
 
         # foreground detection
         mask = self._frg_detect_mth.apply(X)
 
         # foreground mask denoising by mathematical morphology
-        if self.mat_morph:
-            for d in self.mat_morph:
+        if self._mat_morph:
+            for d in self._mat_morph:
                 mask = d.get('fun')(mask, d.get('kernel'))
         self.foreground_mask_ = mask
 
@@ -504,7 +508,7 @@ class GOFPID():
         self._track_blob()
 
         # post-filtering: perimeter, perspective
-        self._post_filter()
+        self._apply_post_filter()
 
         # intrusion detection
         y = self._detect_blob()
@@ -518,15 +522,15 @@ class GOFPID():
         """Finish configurations using first frame dimensions."""
 
         # calibrate perimeter
-        self.post_filter['perimeter'] = unnormalize_coords(
-            self.post_filter['perimeter'],
+        self._post_filter['perimeter'] = unnormalize_coords(
+            self._post_filter['perimeter'],
             self.input_shape_,
             dtype=np.int32,
         )
 
         # calibrate perspective
-        self.post_filter['perspective'] = unnormalize_coords(
-            self.post_filter['perspective'],
+        self._post_filter['perspective'] = unnormalize_coords(
+            self._post_filter['perspective'],
             self.input_shape_,
             dtype=np.float64,
         )
@@ -537,7 +541,7 @@ class GOFPID():
         area, height and width as a function of bottom point.
         """
 
-        points = self.post_filter['perspective']
+        points = self._post_filter['perspective']
         bottoms = [
             np.max([points[1][1], points[0][1]]),
             np.max([points[3][1], points[2][1]]),
@@ -596,7 +600,7 @@ class GOFPID():
 
         bottom = get_bottom(contour, dtype=np.int16)
         center = get_center(contour, dtype=np.int16)
-        if self.post_filter['anchor'] == 'bottom':
+        if self._post_filter['anchor'] == 'bottom':
             anchor = bottom
         else:
             anchor = center
@@ -711,9 +715,9 @@ class GOFPID():
         tracked_blob['absence'] = 0
         tracked_blob['presence'] += 1
 
-        if tracked_blob['presence'] >= self.post_filter['presence_min']:
+        if tracked_blob['presence'] >= self._post_filter['presence_min']:
             tracked_blob['filtered'].discard('presence')
-        if self._compute_total_distance(i_tracked_blob) >= self.post_filter['distance_min']:
+        if self._compute_total_distance(i_tracked_blob) >= self._post_filter['distance_min']:
             tracked_blob['filtered'].discard('distance')
         # else:
         #    # Q: seems dangerous if circular mouvement?
@@ -753,13 +757,13 @@ class GOFPID():
         if self.tracked_blobs_[i_tracked_blob]['absence'] >= self.tracking['absence_max']:
             self.tracked_blobs_.pop(i_tracked_blob)
 
-    def _post_filter(self):
+    def _apply_post_filter(self):
         """Post-filter pre-alarms with perimeter and perspective."""
 
         for tracked_blob in self.tracked_blobs_:
             # filtering by perimeter
             if cv.pointPolygonTest(
-                self.post_filter['perimeter'],
+                self._post_filter['perimeter'],
                 tracked_blob['anchor'],
                 False,
             ) < 0:
@@ -776,7 +780,7 @@ class GOFPID():
                 'area',
                 tracked_blob['bottom'][1],
             )
-            if area <= area_persp * self.post_filter['perspective_coeff']:
+            if area <= area_persp * self._post_filter['perspective_coeff']:
                 # object is smaller than minimal perspective => filtered
                 tracked_blob['filtered'].add('perspective')
             else:
@@ -835,7 +839,7 @@ class GOFPID():
             - perspective: display the perspective of tracked blobs.
         """
 
-        cv.drawContours(X, [self.post_filter['perimeter']], 0, (25, 200, 200))
+        cv.drawContours(X, [self._post_filter['perimeter']], 0, (25, 200, 200))
 
         for tracked_blob in self.tracked_blobs_:
 

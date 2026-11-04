@@ -47,7 +47,7 @@ def test_gofpid():
 def test_gofpid_errors():
     """Test GOFPID errors."""
     gofpid = GOFPID(
-        post_filter=post_filter.copy(),
+        post_filter=post_filter,
     ).initialize()
 
     img1 = np.random.randint(0, high=255, size=(64, 64, 3), dtype=np.uint8)
@@ -64,7 +64,7 @@ def test_gofpid_convert(convert):
     """Test convert parameter."""
     gofpid = GOFPID(
         convert=convert,
-        post_filter=post_filter.copy(),
+        post_filter=post_filter,
     ).initialize()
 
     img = np.random.randint(0, high=255, size=(64, 64, 3), dtype=np.uint8)
@@ -95,7 +95,7 @@ def test_gofpid_blur(size, blur):
     """Test blur parameters."""
     gofpid = GOFPID(
         blur=blur,
-        post_filter=post_filter.copy(),
+        post_filter=post_filter,
     ).initialize()
 
     img = np.random.randint(0, high=255, size=size, dtype=np.uint8)
@@ -107,7 +107,7 @@ def test_gofpid_blur_errors():
     with pytest.raises(KeyError):  # no 'fun' in parameters
         GOFPID(
             blur={'ksize': (3, 3)},
-            post_filter=post_filter.copy(),
+            post_filter=post_filter,
         ).initialize()
 
 
@@ -119,7 +119,7 @@ def test_gofpid_frgdetect(size, frg_detect):
     """Test frg_detect parameters."""
     gofpid = GOFPID(
         frg_detect=frg_detect,
-        post_filter=post_filter.copy(),
+        post_filter=post_filter,
     ).initialize()
 
     for _ in range(n_reps):
@@ -132,7 +132,7 @@ def test_gofpid_frgdetect_errors():
     with pytest.raises(ValueError):  # unknown method
         GOFPID(
             frg_detect='blabla',
-            post_filter=post_filter.copy(),
+            post_filter=post_filter,
         ).initialize()
 
 
@@ -157,7 +157,7 @@ def test_gofpid_matmorph(size, mat_morph):
     """Test mat_morph parameters."""
     gofpid = GOFPID(
         mat_morph=mat_morph,
-        post_filter=post_filter.copy(),
+        post_filter=post_filter,
     ).initialize()
 
     img = np.random.randint(0, high=255, size=size, dtype=np.uint8)
@@ -171,7 +171,7 @@ def test_gofpid_matmorph_errors():
             mat_morph=[
                 {'kernel': cv.getStructuringElement(cv.MORPH_RECT, (5, 5))}
             ],
-            post_filter=post_filter.copy(),
+            post_filter=post_filter,
         ).initialize()
 
 
@@ -180,7 +180,7 @@ def test_gofpid_tracking_errors():
     with pytest.raises(KeyError):  # no 'factor' in parameters
         GOFPID(
             tracking={'blabla': 42},
-            post_filter=post_filter.copy(),
+            post_filter=post_filter,
         ).initialize()
 
 
@@ -278,17 +278,18 @@ def test_gofpid_postfilter_errors(post_filter):
     """Test post_filter errors."""
     with pytest.raises((KeyError, ValueError)):
         GOFPID(
-            post_filter=post_filter.copy(),
+            post_filter=post_filter,
         ).initialize()
 
 
 @pytest.mark.parametrize("keep_alarm", [True, False])
-def test_gofpid_alarmdef(keep_alarm):
+@pytest.mark.parametrize("duration_min", [2, 3, 4])
+def test_gofpid_alarmdef(keep_alarm, duration_min):
     """Test alarm_def parameters."""
     gofpid = GOFPID(
         alarm_def={
             'keep_alarm': keep_alarm,
-            'duration_min': 3,
+            'duration_min': duration_min,
         },
     ).initialize()
 
